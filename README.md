@@ -1,4 +1,5 @@
 # MCP Server for MySQL based on NodeJS
+[![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 ![Demo](assets/demo.gif)
 
 A Model Context Protocol server that provides read-only access to MySQL databases. This server enables LLMs to inspect database schemas and execute read-only queries.
@@ -75,7 +76,6 @@ set the path of all required binaries such as the configuration below:
   }
 }
 ```
-
 
 
 ## License

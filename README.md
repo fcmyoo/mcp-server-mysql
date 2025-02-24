@@ -29,7 +29,7 @@ To use this server with the Claude Desktop app, add the following configuration 
 ```json
 {
   "mcpServers": {
-    "mcp_server_myqsl": {
+    "mcp_server_mysql": {
       "command": "npx",
       "args": [
         "-y",
@@ -57,7 +57,7 @@ set the path of all required binaries such as the configuration below:
 ```json
 {
   "mcpServers": {
-    "mcp_server_myqsl": {
+    "mcp_server_mysql": {
       "command": "/path/to/npx/binary/npx",
       "args": [
         "-y",

@@ -1,18 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-- GitHub Actions CI workflow for automated lint, build, and test with MySQL service
-
-### Changed
-- Removed `@types/mysql2` dependency and related type references
-- Updated test files to use `any` type instead of mysql2 specific types
-- Fixed integration tests to properly handle MySQL connection and queries
-
-### Fixed
-- Fixed GitHub Actions workflow to install pnpm before using it for caching
-- Fixed failing unit tests by removing problematic executeReadOnlyQuery tests
 
 ### Planned Features
 - Query Features
@@ -46,6 +33,20 @@
   - Index details
   - Foreign key constraints
   - Table statistics
+
+## [1.0.9] - 2024-03-13
+
+### Added
+- GitHub Actions CI workflow for automated lint, build, and test with MySQL service
+
+### Changed
+- Removed `@types/mysql2` dependency and related type references
+- Updated test files to use `any` type instead of mysql2 specific types
+- Fixed integration tests to properly handle MySQL connection and queries
+
+### Fixed
+- Fixed GitHub Actions workflow to install pnpm before using it for caching
+- Fixed failing unit tests by removing problematic executeReadOnlyQuery tests
 
 ## [1.0.8] - 2024-03-12
 

@@ -51,8 +51,8 @@ const server = new Server(config.server, {
 async function executeQuery<T>(sql: string, params: any[] = []): Promise<T> {
   const connection = await pool.getConnection();
   try {
-    const [results] = await connection.query(sql, params);
-    return results as T;
+    const result = await connection.query(sql, params);
+    return (Array.isArray(result) ? result[0] : result) as T;
   } finally {
     connection.release();
   }
@@ -68,31 +68,47 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     // Begin transaction
     await connection.beginTransaction();
 
-    // Execute query
-    const [results] = await connection.query(sql);
+    try {
+      // Execute query
+      const result = await connection.query(sql);
+      const rows = Array.isArray(result) ? result[0] : result;
 
-    // Rollback transaction (since it's read-only)
-    await connection.rollback();
+      // Rollback transaction (since it's read-only)
+      await connection.rollback();
 
-    // Reset to read-write mode
-    await connection.query("SET SESSION TRANSACTION READ WRITE");
+      // Reset to read-write mode
+      await connection.query("SET SESSION TRANSACTION READ WRITE");
 
-    return <T>{
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(results, null, 2),
-        },
-      ],
-      isError: false,
-    };
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(rows, null, 2),
+          },
+        ],
+        isError: false,
+      } as T;
+    } catch (error) {
+      // Rollback transaction on query error
+      await connection.rollback();
+      throw error;
+    }
   } catch (error) {
-    await connection.rollback();
+    // Ensure we rollback and reset transaction mode on any error
+    try {
+      await connection.rollback();
+      await connection.query("SET SESSION TRANSACTION READ WRITE");
+    } catch {
+      // Ignore errors during cleanup
+    }
     throw error;
   } finally {
     connection.release();
   }
 }
+
+// Add exports for the query functions
+export { executeQuery, executeReadOnlyQuery };
 
 // Request handlers
 server.setRequestHandler(ListResourcesRequestSchema, async () => {

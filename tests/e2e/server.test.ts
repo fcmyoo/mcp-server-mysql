@@ -101,71 +101,21 @@ describe('MCP Server E2E', () => {
       connectionLimit: 5,
     });
     
-    // Create test table
-    const connection = await pool.getConnection();
-    try {
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS test_table (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      
-      // Insert test data
-      await connection.query('TRUNCATE TABLE test_table');
-      await connection.query(`
-        INSERT INTO test_table (name) VALUES 
-        ('E2E Test 1'),
-        ('E2E Test 2')
-      `);
-    } finally {
-      connection.release();
-    }
-    
-    // Start the MCP server in a separate process
-    // Note: In a real test, you would start the actual server
-    // This is a simplified example
-    /*
-    serverProcess = spawn('node', ['dist/index.js'], {
-      env: {
-        ...process.env,
-        MYSQL_HOST: process.env.MYSQL_HOST || '127.0.0.1',
-        MYSQL_PORT: process.env.MYSQL_PORT || '3306',
-        MYSQL_USER: process.env.MYSQL_USER || 'root',
-        MYSQL_PASS: process.env.MYSQL_PASS || '',
-        MYSQL_DB: process.env.MYSQL_DB || 'mcp_test',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    
-    // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    */
-    
     // Create test client
     client = createTestClient();
   });
   
   afterAll(async () => {
     // Clean up
-    if (client) {
-      client.close();
-    }
-    
     if (serverProcess) {
       serverProcess.kill();
     }
-    
-    // Clean up test database
-    const connection = await pool.getConnection();
-    try {
-      await connection.query('DROP TABLE IF EXISTS test_table');
-    } finally {
-      connection.release();
+    if (pool) {
+      await pool.end();
     }
-    
-    await pool.end();
+    if (client) {
+      client.close();
+    }
   });
   
   it('should list available tools', async () => {

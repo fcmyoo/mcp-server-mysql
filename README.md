@@ -194,11 +194,130 @@ For more control over the MCP server's behavior, you can use these advanced conf
 
 ## Testing
 
+### Database Setup
+
+Before running tests, you need to set up the test database and seed it with test data:
+
+1. **Create Test Database and User**
+   ```sql
+   -- Connect as root and create test database
+   CREATE DATABASE IF NOT EXISTS mcp_test;
+   
+   -- Create test user with appropriate permissions
+   CREATE USER IF NOT EXISTS 'mcp_test'@'localhost' IDENTIFIED BY 'mcp_test_password';
+   GRANT ALL PRIVILEGES ON mcp_test.* TO 'mcp_test'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+2. **Run Database Setup Script**
+   ```bash
+   # Run the database setup script
+   pnpm run setup:test:db
+   ```
+
+   This will create the necessary tables and seed data. The script is located in `scripts/setup-test-db.ts`:
+   ```typescript
+   // scripts/setup-test-db.ts
+   import mysql from 'mysql2/promise';
+   import dotenv from 'dotenv';
+
+   // Load test environment variables
+   dotenv.config({ path: '.env.test' });
+
+   async function setupTestDatabase() {
+     const connection = await mysql.createConnection({
+       host: process.env.MYSQL_HOST || 'localhost',
+       port: Number(process.env.MYSQL_PORT) || 3306,
+       user: process.env.MYSQL_USER || 'mcp_test',
+       password: process.env.MYSQL_PASS || 'mcp_test_password',
+       database: process.env.MYSQL_DB || 'mcp_test',
+       multipleStatements: true
+     });
+
+     try {
+       // Create test tables
+       await connection.query(`
+         CREATE TABLE IF NOT EXISTS users (
+           id INT PRIMARY KEY AUTO_INCREMENT,
+           name VARCHAR(255) NOT NULL,
+           email VARCHAR(255) UNIQUE NOT NULL,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         );
+
+         CREATE TABLE IF NOT EXISTS posts (
+           id INT PRIMARY KEY AUTO_INCREMENT,
+           user_id INT NOT NULL,
+           title VARCHAR(255) NOT NULL,
+           content TEXT,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY (user_id) REFERENCES users(id)
+         );
+       `);
+
+       // Seed test data
+       await connection.query(`
+         -- Clear existing data
+         DELETE FROM posts;
+         DELETE FROM users;
+         ALTER TABLE posts AUTO_INCREMENT = 1;
+         ALTER TABLE users AUTO_INCREMENT = 1;
+
+         -- Insert test users
+         INSERT INTO users (name, email) VALUES
+         ('Test User 1', 'user1@test.com'),
+         ('Test User 2', 'user2@test.com');
+
+         -- Insert test posts
+         INSERT INTO posts (user_id, title, content) VALUES
+         (1, 'First Post', 'Content of first post'),
+         (1, 'Second Post', 'Content of second post'),
+         (2, 'Another Post', 'Content from another user');
+       `);
+
+       console.log('Test database setup completed successfully');
+     } catch (error) {
+       console.error('Error setting up test database:', error);
+       throw error;
+     } finally {
+       await connection.end();
+     }
+   }
+
+   setupTestDatabase().catch(console.error);
+   ```
+
+3. **Configure Test Environment**
+   Create a `.env.test` file in the project root:
+   ```env
+   MYSQL_HOST=127.0.0.1
+   MYSQL_PORT=3306
+   MYSQL_USER=mcp_test
+   MYSQL_PASS=mcp_test_password
+   MYSQL_DB=mcp_test
+   ```
+
+4. **Update package.json Scripts**
+   Add these scripts to your package.json:
+   ```json
+   {
+     "scripts": {
+       "setup:test:db": "ts-node scripts/setup-test-db.ts",
+       "pretest": "pnpm run setup:test:db",
+       "test": "vitest run",
+       "test:watch": "vitest",
+       "test:coverage": "vitest run --coverage"
+     }
+   }
+   ```
+
 ### Running Tests
 
 The project includes a comprehensive test suite to ensure functionality and reliability:
 
 ```bash
+# First-time setup
+pnpm run setup:test:db
+
 # Run all tests
 pnpm test
 
@@ -209,6 +328,9 @@ pnpm test:e2e       # End-to-end tests only
 
 # Run tests with coverage report
 pnpm test:coverage
+
+# Run tests in watch mode during development
+pnpm test:watch
 ```
 
 ### Test Environment Setup
@@ -246,7 +368,31 @@ When contributing new features, please include appropriate tests:
      
      describe('executeQuery', () => {
        it('should execute a valid query', async () => {
-         // Test implementation
+         const mockResults = [{ id: 1, name: 'test' }];
+         const mockConnection = {
+           query: vi.fn().mockResolvedValue([mockResults]),
+           release: vi.fn()
+         };
+         const mockPool = {
+           getConnection: vi.fn().mockResolvedValue(mockConnection)
+         };
+
+         const result = await executeQuery('SELECT * FROM test');
+         expect(result).toEqual(mockResults);
+       });
+
+       it('should handle query errors', async () => {
+         const mockError = new Error('Query failed');
+         const mockConnection = {
+           query: vi.fn().mockRejectedValue(mockError),
+           release: vi.fn()
+         };
+         const mockPool = {
+           getConnection: vi.fn().mockResolvedValue(mockConnection)
+         };
+
+         await expect(executeQuery('INVALID SQL'))
+           .rejects.toThrow('Query failed');
        });
      });
      ```
@@ -263,14 +409,34 @@ When contributing new features, please include appropriate tests:
      describe('MySQL Connection', () => {
        beforeAll(async () => {
          // Setup test database
+         await pool.query(`
+           CREATE TABLE IF NOT EXISTS test_table (
+             id INT PRIMARY KEY AUTO_INCREMENT,
+             name VARCHAR(255) NOT NULL
+           )
+         `);
        });
        
-       it('should connect to the database', async () => {
-         // Test implementation
+       it('should perform CRUD operations', async () => {
+         // Insert test data
+         const insertResult = await pool.query(
+           'INSERT INTO test_table (name) VALUES (?)',
+           ['test_name']
+         );
+         expect(insertResult.affectedRows).toBe(1);
+
+         // Read test data
+         const [rows] = await pool.query(
+           'SELECT * FROM test_table WHERE name = ?',
+           ['test_name']
+         );
+         expect(rows[0].name).toBe('test_name');
        });
        
        afterAll(async () => {
          // Cleanup
+         await pool.query('DROP TABLE IF EXISTS test_table');
+         await pool.end();
        });
      });
      ```
@@ -285,11 +451,42 @@ When contributing new features, please include appropriate tests:
      import { createServer, sendRequest } from '../utils';
      
      describe('MCP Server', () => {
-       it('should respond to tool requests', async () => {
-         // Test implementation
+       it('should handle mysql_query tool requests', async () => {
+         const server = await createServer();
+         const response = await sendRequest(server, {
+           name: 'mysql_query',
+           arguments: {
+             sql: 'SELECT 1 + 1 as result'
+           }
+         });
+
+         expect(response.content[0].text).toContain('"result": 2');
+       });
+
+       it('should handle schema inspection requests', async () => {
+         const server = await createServer();
+         const response = await sendRequest(server, {
+           type: 'ListResources'
+         });
+
+         expect(response.resources).toBeInstanceOf(Array);
+         expect(response.resources[0]).toHaveProperty('uri');
        });
      });
      ```
+
+### Test Coverage Requirements
+
+- Minimum coverage requirements:
+  - Statements: 80%
+  - Branches: 75%
+  - Functions: 80%
+  - Lines: 80%
+
+- Run coverage report:
+  ```bash
+  pnpm test:coverage
+  ```
 
 ### Continuous Integration
 
@@ -298,6 +495,74 @@ The project uses GitHub Actions for CI/CD:
 - Tests run automatically on pull requests
 - Code coverage reports are generated
 - Linting and type checking are performed
+
+The CI pipeline includes:
+
+```yaml
+# .github/workflows/test.yml
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: mcp_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Run tests
+        run: pnpm test
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_USER: root
+          MYSQL_PASS: root
+          MYSQL_DB: mcp_test
+          
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
+```
+
+### Testing Best Practices
+
+1. **Test Organization**
+   - Keep test files close to the code they test
+   - Use descriptive test names
+   - Group related tests using `describe` blocks
+
+2. **Test Data**
+   - Use fixtures for complex test data
+   - Clean up test data after tests
+   - Don't rely on test execution order
+
+3. **Mocking**
+   - Mock external dependencies
+   - Use meaningful mock data
+   - Reset mocks between tests
+
+4. **Assertions**
+   - Make assertions specific and meaningful
+   - Test both success and failure cases
+   - Include edge cases and boundary conditions
 
 ## Troubleshooting
 
@@ -363,7 +628,7 @@ If you encounter an error "Could not connect to MCP server mcp-server-mysql", ex
    - Try creating a user with legacy authentication if needed:
      ```sql
      CREATE USER 'user'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
-     ```
+```
 
 ## Contributing
 

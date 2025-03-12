@@ -10,14 +10,21 @@ describe('MySQL Integration', () => {
   
   beforeAll(async () => {
     // Create a connection pool for testing
-    pool = mysql2.createPool({
+    const config: any = {
       host: process.env.MYSQL_HOST || '127.0.0.1',
       port: Number(process.env.MYSQL_PORT || '3306'),
       user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASS || '',
       database: process.env.MYSQL_DB || 'mcp_test',
       connectionLimit: 5,
-    });
+      multipleStatements: true
+    };
+
+    // Only add password if it's set
+    if (process.env.MYSQL_PASS) {
+      config.password = process.env.MYSQL_PASS;
+    }
+
+    pool = mysql2.createPool(config);
     
     // Create a test table if it doesn't exist
     const connection = await pool.getConnection();
@@ -67,7 +74,7 @@ describe('MySQL Integration', () => {
   it('should execute a query and return results', async () => {
     const connection = await pool.getConnection();
     try {
-      const [rows] = await connection.query('SELECT * FROM test_table');
+      const [rows] = await connection.query('SELECT * FROM test_table') as [any[], any];
       expect(Array.isArray(rows)).toBe(true);
       expect(rows.length).toBe(3);
     } finally {

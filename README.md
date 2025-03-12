@@ -215,76 +215,7 @@ Before running tests, you need to set up the test database and seed it with test
    pnpm run setup:test:db
    ```
 
-   This will create the necessary tables and seed data. The script is located in `scripts/setup-test-db.ts`:
-   ```typescript
-   // scripts/setup-test-db.ts
-   import mysql from 'mysql2/promise';
-   import dotenv from 'dotenv';
-
-   // Load test environment variables
-   dotenv.config({ path: '.env.test' });
-
-   async function setupTestDatabase() {
-     const connection = await mysql.createConnection({
-       host: process.env.MYSQL_HOST || 'localhost',
-       port: Number(process.env.MYSQL_PORT) || 3306,
-       user: process.env.MYSQL_USER || 'mcp_test',
-       password: process.env.MYSQL_PASS || 'mcp_test_password',
-       database: process.env.MYSQL_DB || 'mcp_test',
-       multipleStatements: true
-     });
-
-     try {
-       // Create test tables
-       await connection.query(`
-         CREATE TABLE IF NOT EXISTS users (
-           id INT PRIMARY KEY AUTO_INCREMENT,
-           name VARCHAR(255) NOT NULL,
-           email VARCHAR(255) UNIQUE NOT NULL,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-         );
-
-         CREATE TABLE IF NOT EXISTS posts (
-           id INT PRIMARY KEY AUTO_INCREMENT,
-           user_id INT NOT NULL,
-           title VARCHAR(255) NOT NULL,
-           content TEXT,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-           FOREIGN KEY (user_id) REFERENCES users(id)
-         );
-       `);
-
-       // Seed test data
-       await connection.query(`
-         -- Clear existing data
-         DELETE FROM posts;
-         DELETE FROM users;
-         ALTER TABLE posts AUTO_INCREMENT = 1;
-         ALTER TABLE users AUTO_INCREMENT = 1;
-
-         -- Insert test users
-         INSERT INTO users (name, email) VALUES
-         ('Test User 1', 'user1@test.com'),
-         ('Test User 2', 'user2@test.com');
-
-         -- Insert test posts
-         INSERT INTO posts (user_id, title, content) VALUES
-         (1, 'First Post', 'Content of first post'),
-         (1, 'Second Post', 'Content of second post'),
-         (2, 'Another Post', 'Content from another user');
-       `);
-
-       console.log('Test database setup completed successfully');
-     } catch (error) {
-       console.error('Error setting up test database:', error);
-       throw error;
-     } finally {
-       await connection.end();
-     }
-   }
-
-   setupTestDatabase().catch(console.error);
-   ```
+   This will create the necessary tables and seed data. The script is located in `scripts/setup-test-db.ts`
 
 3. **Configure Test Environment**
    Create a `.env.test` file in the project root:
@@ -386,7 +317,6 @@ If you encounter an error "Could not connect to MCP server mcp-server-mysql", ex
    - Try creating a user with legacy authentication if needed:
      ```sql
      CREATE USER 'user'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
-```
 
 ## Contributing
 

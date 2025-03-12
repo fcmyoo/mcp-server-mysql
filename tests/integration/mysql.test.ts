@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as mysql2 from 'mysql2/promise';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as dotenv from 'dotenv';
 
 // Load test environment variables
 dotenv.config({ path: '.env.test' });
 
 describe('MySQL Integration', () => {
-  let pool: mysql2.Pool;
+  let pool: any;
   
   beforeAll(async () => {
     // Create a connection pool for testing

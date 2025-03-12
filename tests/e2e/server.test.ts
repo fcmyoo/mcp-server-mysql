@@ -85,9 +85,9 @@ function createTestClient() {
   };
 }
 
-describe('MCP Server E2E', () => {
-  let pool: mysql2.Pool;
-  let serverProcess: ChildProcess | null = null;
+describe('Server', () => {
+  let serverProcess: any;
+  let pool: any;
   let client: ReturnType<typeof createTestClient>;
   
   beforeAll(async () => {

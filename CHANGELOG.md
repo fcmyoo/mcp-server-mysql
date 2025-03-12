@@ -34,6 +34,12 @@
   - Foreign key constraints
   - Table statistics
 
+## [1.0.10] - 2024-03-13
+
+### Changed
+- Version bump to fix npm publishing issue
+- Updated installation instructions in README to reference specific version
+
 ## [1.0.9] - 2024-03-13
 
 ### Added

@@ -1,5 +1,6 @@
 # MCP Server for MySQL based on NodeJS
 [![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
+
 ![Demo](assets/demo.gif)
 
 A Model Context Protocol server that provides read-only access to MySQL databases. This server enables LLMs to inspect database schemas and execute read-only queries.
@@ -11,8 +12,7 @@ The easiest way to install and configure this MCP server is through [Smithery](h
 
 ```bash
 # Install the MCP server
-npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql --client claude
-smithery configure @benborla29/mcp-server-mysql
+npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql@1.0.9 --client claude
 ```
 
 During configuration, you'll be prompted to enter your MySQL connection details. Smithery will automatically:
@@ -25,7 +25,7 @@ During configuration, you'll be prompted to enter your MySQL connection details.
 You can also install this package using [MCP Get](https://mcp-get.com/packages/%40benborla29%2Fmcp-server-mysql):
 
 ```bash
-npx @michaellatman/mcp-get@latest install @benborla29/mcp-server-mysql
+npx @michaellatman/mcp-get@latest install @benborla29/mcp-server-mysql@1.0.9
 ```
 
 MCP Get provides a centralized registry of MCP servers and simplifies the installation process.
@@ -35,10 +35,10 @@ For manual installation:
 
 ```bash
 # Using npm
-npm install -g @benborla29/mcp-server-mysql
+npm install -g @benborla29/mcp-server-mysql@1.0.9
 
 # Using pnpm
-pnpm add -g @benborla29/mcp-server-mysql
+pnpm add -g @benborla29/mcp-server-mysql@1.0.9
 ```
 
 After manual installation, you'll need to configure your LLM application to use the MCP server (see Configuration section below).

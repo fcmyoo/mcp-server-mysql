@@ -9,7 +9,6 @@ startCommand:
       - mysqlHost
       - mysqlPort
       - mysqlUser
-      - mysqlPass
     properties:
       mysqlHost:
         type: string

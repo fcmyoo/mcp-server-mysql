@@ -8,9 +8,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import mysql, { MysqlError, PoolConnection } from "mysql";
-
-type MySQLErrorType = MysqlError | null;
+import * as mysql2 from "mysql2/promise";
 
 interface TableRow {
   table_name: string;
@@ -33,57 +31,16 @@ const config = {
     password: process.env.MYSQL_PASS || "",
     database: process.env.MYSQL_DB || "",
     connectionLimit: 10,
+    authPlugins: {
+      mysql_clear_password: () => () => Buffer.from(process.env.MYSQL_PASS || "")
+    }
   },
   paths: {
     schema: "schema",
   },
 };
 
-const mysqlQuery = <T>(
-  connection: PoolConnection,
-  sql: string,
-  params: any[] = [],
-): Promise<T> => {
-  return new Promise((resolve, reject) => {
-    connection.query(sql, params, (error: MySQLErrorType, results: any) => {
-      if (error) reject(error);
-      else resolve(results);
-    });
-  });
-};
-
-const mysqlGetConnection = (pool: mysql.Pool): Promise<PoolConnection> => {
-  return new Promise(
-    (
-      resolve: (value: PoolConnection | PromiseLike<PoolConnection>) => void,
-      reject,
-    ) => {
-      pool.getConnection(
-        (error: MySQLErrorType, connection: PoolConnection) => {
-          if (error) reject(error);
-          else resolve(connection);
-        },
-      );
-    },
-  );
-};
-
-const mysqlBeginTransaction = (connection: PoolConnection): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    connection.beginTransaction((error: MySQLErrorType) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-};
-
-const mysqlRollback = (connection: PoolConnection): Promise<void> => {
-  return new Promise((resolve, _) => {
-    connection.rollback(() => resolve());
-  });
-};
-
-const pool = mysql.createPool(config.mysql);
+const pool = mysql2.createPool(config.mysql);
 const server = new Server(config.server, {
   capabilities: {
     resources: {},
@@ -92,33 +49,33 @@ const server = new Server(config.server, {
 });
 
 async function executeQuery<T>(sql: string, params: any[] = []): Promise<T> {
-  const connection = await mysqlGetConnection(pool);
+  const connection = await pool.getConnection();
   try {
-    const results = await mysqlQuery<T>(connection, sql, params);
-    return results;
+    const [results] = await connection.query(sql, params);
+    return results as T;
   } finally {
     connection.release();
   }
 }
 
 async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
-  const connection = await mysqlGetConnection(pool);
+  const connection = await pool.getConnection();
 
   try {
     // Set read-only mode
-    await mysqlQuery(connection, "SET SESSION TRANSACTION READ ONLY");
+    await connection.query("SET SESSION TRANSACTION READ ONLY");
 
     // Begin transaction
-    await mysqlBeginTransaction(connection);
+    await connection.beginTransaction();
 
     // Execute query
-    const results = await mysqlQuery(connection, sql);
+    const [results] = await connection.query(sql);
 
     // Rollback transaction (since it's read-only)
-    await mysqlRollback(connection);
+    await connection.rollback();
 
     // Reset to read-write mode
-    await mysqlQuery(connection, "SET SESSION TRANSACTION READ WRITE");
+    await connection.query("SET SESSION TRANSACTION READ WRITE");
 
     return <T>{
       content: [
@@ -130,7 +87,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       isError: false,
     };
   } catch (error) {
-    await mysqlRollback(connection);
+    await connection.rollback();
     throw error;
   } finally {
     connection.release();
@@ -213,16 +170,12 @@ async function runServer() {
 
 const shutdown = async (signal: string) => {
   console.log(`Received ${signal}. Shutting down...`);
-  return new Promise<void>((resolve, reject) => {
-    pool.end((err: MySQLErrorType) => {
-      if (err) {
-        console.error("Error closing pool:", err);
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
+  try {
+    await pool.end();
+  } catch (err) {
+    console.error("Error closing pool:", err);
+    throw err;
+  }
 };
 
 process.on("SIGINT", async () => {

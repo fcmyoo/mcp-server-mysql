@@ -11,7 +11,6 @@ A Model Context Protocol server that provides read-only access to MySQL database
 The easiest way to install and configure this MCP server is through [Smithery](https://smithery.ai/server/@benborla29/mcp-server-mysql):
 
 ```bash
-# Install the MCP server
 npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql --client claude
 ```
 
@@ -33,11 +32,12 @@ MCP Get provides a centralized registry of MCP servers and simplifies the instal
 ### Using NPM/PNPM
 For manual installation:
 
-```bash
 # Using npm
+```bash
 npm install -g @benborla29/mcp-server-mysql
 
 # Using pnpm
+```
 pnpm add -g @benborla29/mcp-server-mysql
 ```
 

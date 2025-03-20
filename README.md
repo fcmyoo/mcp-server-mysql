@@ -35,6 +35,7 @@ For manual installation:
 # Using npm
 ```bash
 npm install -g @benborla29/mcp-server-mysql
+```
 
 # Using pnpm
 ```

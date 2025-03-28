@@ -26,7 +26,15 @@ startCommand:
         type: string
         description: The database name to connect to. If left blank, retrieves all
           databases.
+      ssl:
+        type: boolean
+        default: false
+        description: If set to true, the connection will use SSL.
+      rejectUnauthorizedSSL:
+        type: boolean
+        default: false
+        description: If set to true, the connection will verify the SSL certificate.
   commandFunction:
     # A function that produces the CLI command to start the MCP on stdio.
     |-
-    (config) => ({command: 'node', args: ['dist/index.js'], env: {MYSQL_HOST: config.mysqlHost, MYSQL_PORT: config.mysqlPort, MYSQL_USER: config.mysqlUser, MYSQL_PASS: config.mysqlPass, MYSQL_DB: config.mysqlDb}})
+    (config) => ({command: 'node', args: ['dist/index.js'], env: {MYSQL_HOST: config.mysqlHost, MYSQL_PORT: config.mysqlPort, MYSQL_USER: config.mysqlUser, MYSQL_PASS: config.mysqlPass, MYSQL_DB: config.mysqlDb, MYSQL_SSL: config.ssl, MYSQL_SSL_REJECT_UNAUTHORIZED: config.rejectUnauthorizedSSL}})

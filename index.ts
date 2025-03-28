@@ -33,7 +33,12 @@ const config = {
     connectionLimit: 10,
     authPlugins: {
       mysql_clear_password: () => () => Buffer.from(process.env.MYSQL_PASS || "")
-    }
+    },
+    ...(process.env.MYSQL_SSL === "true" ? {
+      ssl: {
+        rejectUnauthorized: process.env.MYSQL_SSL_REJECT_UNAUTHORIZED === 'true',
+      }
+    } : {})
   },
   paths: {
     schema: "schema",

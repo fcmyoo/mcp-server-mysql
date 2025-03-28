@@ -36,7 +36,7 @@ const config = {
     },
     ...(process.env.MYSQL_SSL === "true" ? {
       ssl: {
-        rejectUnauthorized: process.env.MYSQL_SSL_REJECT_UNAUTHORIZED || 'false',
+        rejectUnauthorized: process.env.MYSQL_SSL_REJECT_UNAUTHORIZED === 'true',
       }
     } : {})
   },

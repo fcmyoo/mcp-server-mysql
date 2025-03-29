@@ -82,6 +82,21 @@ During configuration, you'll be prompted to enter your MySQL connection details.
 - Configure your LLM application to use the MCP server
 - Test the connection to your MySQL database
 - Provide helpful troubleshooting if needed
+- Configure write operation settings (INSERT, UPDATE, DELETE permissions)
+
+The installation will ask for the following connection details:
+- MySQL Host (default: 127.0.0.1)
+- MySQL Port (default: 3306)
+- MySQL Username
+- MySQL Password
+- MySQL Database name
+- SSL Configuration (if needed)
+- Write operations permissions:
+  - Allow INSERT operations (default: false)
+  - Allow UPDATE operations (default: false)
+  - Allow DELETE operations (default: false)
+
+For security reasons, write operations are disabled by default. Enable them only if you need Claude to modify your database data.
 
 ### Using MCP Get
 
@@ -234,6 +249,19 @@ If you installed using Smithery, your configuration is already set up. You can v
 smithery configure @benborla29/mcp-server-mysql
 ```
 
+When reconfiguring, you can update any of the MySQL connection details as well as the write operation settings:
+
+- **Basic connection settings**:
+  - MySQL Host, Port, User, Password, Database
+  - SSL/TLS configuration (if your database requires secure connections)
+
+- **Write operation permissions**:
+  - Allow INSERT Operations: Set to true if you want to allow adding new data
+  - Allow UPDATE Operations: Set to true if you want to allow updating existing data
+  - Allow DELETE Operations: Set to true if you want to allow deleting data
+
+For security reasons, all write operations are disabled by default. Only enable these settings if you specifically need Claude to modify your database data.
+
 ### Advanced Configuration Options
 For more control over the MCP server's behavior, you can use these advanced configuration options:
 
@@ -333,7 +361,7 @@ Before running tests, you need to set up the test database and seed it with test
    This will create the necessary tables and seed data. The script is located in `scripts/setup-test-db.ts`
 
 3. **Configure Test Environment**
-   Create a `.env.test` file in the project root:
+   Create a `.env.test` file in the project root (if not existing):
    ```env
    MYSQL_HOST=127.0.0.1
    MYSQL_PORT=3306

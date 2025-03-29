@@ -46,18 +46,5 @@ startCommand:
         type: boolean
         default: false
         description: If set to true, DELETE operations will be allowed.
-  commandFunction:
-    # A function that produces the CLI command to start the MCP on stdio.
-    |-
-    (config) => ({command: 'node', args: ['dist/index.js'], env: {
-      MYSQL_HOST: config.mysqlHost, 
-      MYSQL_PORT: config.mysqlPort, 
-      MYSQL_USER: config.mysqlUser, 
-      MYSQL_PASS: config.mysqlPass, 
-      MYSQL_DB: config.mysqlDb, 
-      MYSQL_SSL: config.ssl, 
-      MYSQL_SSL_REJECT_UNAUTHORIZED: config.rejectUnauthorizedSSL,
-      ALLOW_INSERT_OPERATION: config.allowInsertOperation,
-      ALLOW_UPDATE_OPERATION: config.allowUpdateOperation,
-      ALLOW_DELETE_OPERATION: config.allowDeleteOperation
-    }})
+    commandFunction:
+      (config) => ({ command: 'node', args: ['dist/index.js'], env: { MYSQL_HOST: config.mysqlHost, MYSQL_PORT: config.mysqlPort, MYSQL_USER: config.mysqlUser, MYSQL_PASS: config.mysqlPass, MYSQL_DB: config.mysqlDb, MYSQL_SSL: config.ssl, MYSQL_SSL_REJECT_UNAUTHORIZED: config.rejectUnauthorizedSSL, ALLOW_INSERT_OPERATION: config.allowInsertOperation, ALLOW_UPDATE_OPERATION: config.allowUpdateOperation, ALLOW_DELETE_OPERATION: config.allowDeleteOperation } })

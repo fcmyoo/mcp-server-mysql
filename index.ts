@@ -11,21 +11,38 @@ import {
 import * as mysql2 from "mysql2/promise";
 import * as dotenv from "dotenv";
 
+export interface TableRow {
+  table_name: string;
+}
+
+export interface ColumnRow {
+  column_name: string;
+  data_type: string;
+}
+
 // Load environment variables from .env file
 dotenv.config();
+
+// Update the environment setup to ensure database is correctly set
+if (process.env.NODE_ENV === 'test' && !process.env.MYSQL_DB) {
+  process.env.MYSQL_DB = 'mcp_test_db'; // Ensure we have a database name for tests
+}
 
 // Write operation flags
 const ALLOW_INSERT_OPERATION = process.env.ALLOW_INSERT_OPERATION === 'true';
 const ALLOW_UPDATE_OPERATION = process.env.ALLOW_UPDATE_OPERATION === 'true';
 const ALLOW_DELETE_OPERATION = process.env.ALLOW_DELETE_OPERATION === 'true';
 
-interface TableRow {
-  table_name: string;
-}
+// Check if running in test mode
+const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.VITEST;
 
-interface ColumnRow {
-  column_name: string;
-  data_type: string;
+// Safe way to exit process (not during tests)
+function safeExit(code: number): void {
+  if (!isTestEnvironment) {
+    process.exit(code);
+  } else {
+    console.error(`[Test mode] Would have called process.exit(${code})`);
+  }
 }
 
 const config = {
@@ -37,11 +54,11 @@ const config = {
     host: process.env.MYSQL_HOST || "127.0.0.1",
     port: Number(process.env.MYSQL_PORT || "3306"),
     user: process.env.MYSQL_USER || "root",
-    password: process.env.MYSQL_PASS || "",
-    database: process.env.MYSQL_DB || "",
+    password: process.env.MYSQL_PASS || "root",
+    database: process.env.MYSQL_DB || "mcp_test_db", // Default to test database if not specified
     connectionLimit: 10,
     authPlugins: {
-      mysql_clear_password: () => () => Buffer.from(process.env.MYSQL_PASS || "")
+      mysql_clear_password: () => () => Buffer.from(process.env.MYSQL_PASS || "root")
     },
     ...(process.env.MYSQL_SSL === "true" ? {
       ssl: {
@@ -54,11 +71,24 @@ const config = {
   },
 };
 
+// Add more detailed debugging for test environments
+if (isTestEnvironment) {
+  console.error("TEST MODE: MySQL Configuration details:", {
+    host: config.mysql.host,
+    port: config.mysql.port,
+    user: config.mysql.user,
+    database: config.mysql.database || 'NOT SET',
+    password: config.mysql.password ? 'PRESENT' : 'MISSING',
+    env_db: process.env.MYSQL_DB || 'NOT SET IN ENV'
+  });
+}
+
 // Add debug logging for configuration
 console.error("MySQL Configuration:", JSON.stringify({
   host: config.mysql.host,
   port: config.mysql.port,
   user: config.mysql.user,
+  password: config.mysql.password ? "******" : "not set",
   database: config.mysql.database,
   ssl: process.env.MYSQL_SSL === "true" ? "enabled" : "disabled"
 }, null, 2));
@@ -69,7 +99,7 @@ try {
   console.error("MySQL pool created successfully");
 } catch (error) {
   console.error("Error creating MySQL pool:", error);
-  process.exit(1);
+  safeExit(1);
 }
 
 const server = new Server(config.server, {
@@ -422,7 +452,7 @@ async function runServer() {
     console.error("Server connected to transport successfully");
   } catch (error) {
     console.error("Fatal error during server startup:", error);
-    process.exit(1);
+    safeExit(1);
   }
 }
 
@@ -443,7 +473,7 @@ process.on("SIGINT", async () => {
     process.exit(0);
   } catch (err) {
     console.error("Error during SIGINT shutdown:", err);
-    process.exit(1);
+    safeExit(1);
   }
 });
 
@@ -453,22 +483,22 @@ process.on("SIGTERM", async () => {
     process.exit(0);
   } catch (err) {
     console.error("Error during SIGTERM shutdown:", err);
-    process.exit(1);
+    safeExit(1);
   }
 });
 
 // Add unhandled error listeners
 process.on("uncaughtException", (error) => {
   console.error("Uncaught exception:", error);
-  process.exit(1);
+  safeExit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled rejection at:", promise, "reason:", reason);
-  process.exit(1);
+  safeExit(1);
 });
 
 runServer().catch((error: unknown) => {
   console.error("Server error:", error);
-  process.exit(1);
+  safeExit(1);
 });

@@ -131,19 +131,7 @@ If you want to clone and run this MCP server directly from the source code, foll
    pnpm run build
    ```
 
-4. **Create a .env file**
-   ```bash
-   # Create a .env file with your MySQL credentials
-   echo "MYSQL_HOST=127.0.0.1
-   MYSQL_PORT=3306
-   MYSQL_USER=root
-   MYSQL_PASS=your_password
-   MYSQL_DB=your_database
-   MYSQL_SSL=false
-   MYSQL_SSL_REJECT_UNAUTHORIZED=false" > .env
-   ```
-
-5. **Configure Claude Desktop**
+4. **Configure Claude Desktop**
 
    Add the following to your Claude Desktop configuration file (`claude_desktop_config.json`):
 
@@ -175,7 +163,7 @@ If you want to clone and run this MCP server directly from the source code, foll
    - `/full/path/to/mcp-server-mysql` with the full path to where you cloned the repository
    - Set the MySQL credentials to match your environment
 
-6. **Test the server**
+5. **Test the server**
    ```bash
    # Run the server directly to test
    node dist/index.js

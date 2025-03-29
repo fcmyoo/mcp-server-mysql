@@ -34,6 +34,43 @@
   - Foreign key constraints
   - Table statistics
 
+## [1.0.13] - 2024-05-26
+
+### Added
+- Complete write operations support through Smithery configuration
+- Added environment variables for database write operations (`ALLOW_INSERT_OPERATION`, `ALLOW_UPDATE_OPERATION`, `ALLOW_DELETE_OPERATION`)
+- New configuration options in Smithery schema for controlling write permissions
+- Improved documentation for write operations configuration
+- Support for enabling/disabling specific SQL operations via environment variables
+- Enhanced error handling for unauthorized write operations
+
+### Changed
+- Updated Smithery configuration to include write operation settings
+- Improved Smithery integration with clear security defaults
+- Enhanced documentation with detailed configuration examples
+- Restructured README with clearer installation instructions
+- Better error reporting for database connection issues
+- Improved transaction handling for write operations
+
+### Fixed
+- Fixed error handling for database connection failures
+- Improved error messages for unauthorized operations
+- Better handling of MySQL 8.0+ authentication methods
+- Fixed SSL/TLS configuration options in Smithery
+
+### Security
+- All write operations (INSERT, UPDATE, DELETE) disabled by default
+- Added clear documentation about security implications of enabling write operations
+- Improved transaction isolation for write operations
+- Enhanced error reporting that doesn't expose sensitive information
+
+### Documentation
+- Updated README with comprehensive Smithery configuration instructions
+- Added detailed examples for enabling specific write operations
+- Improved troubleshooting section with common issues and solutions
+- Better explanation of required MySQL permissions for different operation types
+- Added clear security recommendations for production deployments
+
 ## [1.0.10] - 2024-03-13
 
 ### Changed

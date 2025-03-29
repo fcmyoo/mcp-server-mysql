@@ -3,11 +3,74 @@
 
 ![Demo](assets/demo.gif)
 
-A Model Context Protocol server that provides read-only access to MySQL databases. This server enables LLMs to inspect database schemas and execute read-only queries.
+A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
+
+## Table of Contents
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Claude Desktop](#claude-desktop)
+  - [Cursor](#cursor)
+  - [Smithery](#using-smithery)
+  - [MCP Get](#using-mcp-get)
+  - [Clone to Local Repository](#running-from-local-repository)
+- [Components](#components)
+- [Configuration](#configuration)
+- [Environment Variables](#environment-variables)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Requirements
+
+- Node.js v18 or higher
+- MySQL 5.7 or higher (MySQL 8.0+ recommended)
+- MySQL user with appropriate permissions for the operations you need
+- For write operations: MySQL user with INSERT, UPDATE, and/or DELETE privileges
 
 ## Installation
 
+There are several ways to install and configure the MCP server:
+
+### Claude Desktop
+
+To manually configure the MCP server for Claude Desktop App, add the following to your `claude_desktop_config.json` file (typically located in your user directory):
+
+```json
+{
+  "mcpServers": {
+    "mcp_server_mysql": {
+      "command": "/path/to/node",
+      "args": [
+        "/full/path/to/mcp-server-mysql/dist/index.js"
+      ],
+      "env": {
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "root",
+        "MYSQL_PASS": "your_password",
+        "MYSQL_DB": "your_database",
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+For Cursor IDE, you can install this MCP server with the following command in your project:
+
+```bash
+npm install -g @benborla29/mcp-server-mysql
+```
+
+Then configure it in your Cursor settings.
+
 ### Using Smithery
+
 The easiest way to install and configure this MCP server is through [Smithery](https://smithery.ai/server/@benborla29/mcp-server-mysql):
 
 ```bash
@@ -21,6 +84,7 @@ During configuration, you'll be prompted to enter your MySQL connection details.
 - Provide helpful troubleshooting if needed
 
 ### Using MCP Get
+
 You can also install this package using [MCP Get](https://mcp-get.com/packages/%40benborla29%2Fmcp-server-mysql):
 
 ```bash
@@ -30,28 +94,108 @@ npx @michaellatman/mcp-get@latest install @benborla29/mcp-server-mysql
 MCP Get provides a centralized registry of MCP servers and simplifies the installation process.
 
 ### Using NPM/PNPM
+
 For manual installation:
 
-# Using npm
 ```bash
+# Using npm
 npm install -g @benborla29/mcp-server-mysql
-```
 
 # Using pnpm
-```
 pnpm add -g @benborla29/mcp-server-mysql
 ```
 
 After manual installation, you'll need to configure your LLM application to use the MCP server (see Configuration section below).
+
+### Running from Local Repository
+
+If you want to clone and run this MCP server directly from the source code, follow these steps:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/benborla/mcp-server-mysql.git
+   cd mcp-server-mysql
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
+
+3. **Build the project**
+   ```bash
+   npm run build
+   # or
+   pnpm run build
+   ```
+
+4. **Create a .env file**
+   ```bash
+   # Create a .env file with your MySQL credentials
+   echo "MYSQL_HOST=127.0.0.1
+   MYSQL_PORT=3306
+   MYSQL_USER=root
+   MYSQL_PASS=your_password
+   MYSQL_DB=your_database
+   MYSQL_SSL=false
+   MYSQL_SSL_REJECT_UNAUTHORIZED=false" > .env
+   ```
+
+5. **Configure Claude Desktop**
+
+   Add the following to your Claude Desktop configuration file (`claude_desktop_config.json`):
+
+   ```json
+   {
+     "mcpServers": {
+       "mcp_server_mysql": {
+         "command": "/path/to/node",
+         "args": [
+           "/full/path/to/mcp-server-mysql/dist/index.js"
+         ],
+         "env": {
+           "MYSQL_HOST": "127.0.0.1",
+           "MYSQL_PORT": "3306",
+           "MYSQL_USER": "root",
+           "MYSQL_PASS": "your_password",
+           "MYSQL_DB": "your_database",
+           "ALLOW_INSERT_OPERATION": "false",
+           "ALLOW_UPDATE_OPERATION": "false",
+           "ALLOW_DELETE_OPERATION": "false"
+         }
+       }
+     }
+   }
+   ```
+
+   Replace:
+   - `/path/to/node` with the full path to your Node.js binary (find it with `which node`)
+   - `/full/path/to/mcp-server-mysql` with the full path to where you cloned the repository
+   - Set the MySQL credentials to match your environment
+
+6. **Test the server**
+   ```bash
+   # Run the server directly to test
+   node dist/index.js
+   ```
+
+   If it connects to MySQL successfully, you're ready to use it with Claude Desktop.
 
 ## Components
 
 ### Tools
 
 - **mysql_query**
-  - Execute read-only SQL queries against the connected database
+  - Execute SQL queries against the connected database
   - Input: `sql` (string): The SQL query to execute
-  - All queries are executed within a READ ONLY transaction
+  - By default, limited to READ ONLY operations
+  - Optional write operations (when enabled via configuration):
+    - INSERT: Add new data to tables (requires `ALLOW_INSERT_OPERATION=true`)
+    - UPDATE: Modify existing data (requires `ALLOW_UPDATE_OPERATION=true`)
+    - DELETE: Remove data (requires `ALLOW_DELETE_OPERATION=true`)
+  - All operations are executed within a transaction with proper commit/rollback handling
   - Supports prepared statements for secure parameter handling
   - Configurable query timeouts and result pagination
   - Built-in query execution statistics
@@ -102,32 +246,6 @@ If you installed using Smithery, your configuration is already set up. You can v
 smithery configure @benborla29/mcp-server-mysql
 ```
 
-### Manual Configuration for Claude Desktop App
-To manually configure the MCP server for Claude Desktop App, add the following to your `claude_desktop_config.json` file (typically located in your user directory):
-
-```json
-{
-  "mcpServers": {
-    "mcp_server_mysql": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@benborla29/mcp-server-mysql"
-      ],
-      "env": {
-        "MYSQL_HOST": "127.0.0.1",
-        "MYSQL_PORT": "3306",
-        "MYSQL_USER": "root",
-        "MYSQL_PASS": "",
-        "MYSQL_DB": "db_name"
-      }
-    }
-  }
-}
-```
-
-Replace `db_name` with your database name or leave it blank to access all databases.
-
 ### Advanced Configuration Options
 For more control over the MCP server's behavior, you can use these advanced configuration options:
 
@@ -162,7 +280,12 @@ For more control over the MCP server's behavior, you can use these advanced conf
         // Monitoring settings
         "MYSQL_ENABLE_LOGGING": "true",
         "MYSQL_LOG_LEVEL": "info",
-        "MYSQL_METRICS_ENABLED": "true"
+        "MYSQL_METRICS_ENABLED": "true",
+        
+        // Write operation flags
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
       }
     }
   }
@@ -187,6 +310,9 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `MYSQL_RATE_LIMIT`: Maximum queries per minute (default: "100")
 - `MYSQL_MAX_QUERY_COMPLEXITY`: Maximum query complexity score (default: "1000")
 - `MYSQL_SSL`: Enable SSL/TLS encryption (default: "false")
+- `ALLOW_INSERT_OPERATION`: Enable INSERT operations (default: "false")
+- `ALLOW_UPDATE_OPERATION`: Enable UPDATE operations (default: "false")
+- `ALLOW_DELETE_OPERATION`: Enable DELETE operations (default: "false")
 
 ### Monitoring Configuration
 - `MYSQL_ENABLE_LOGGING`: Enable query logging (default: "false")
@@ -256,31 +382,6 @@ pnpm test
 
 ## Troubleshooting
 
-### Using Smithery for Troubleshooting
-If you installed with Smithery, you can use its built-in diagnostics:
-
-```bash
-# Check the status of your MCP server
-smithery status @benborla29/mcp-server-mysql
-
-# Run diagnostics
-smithery diagnose @benborla29/mcp-server-mysql
-
-# View logs
-smithery logs @benborla29/mcp-server-mysql
-```
-
-### Using MCP Get for Troubleshooting
-If you installed with MCP Get:
-
-```bash
-# Check the status
-mcp-get status @benborla29/mcp-server-mysql
-
-# View logs
-mcp-get logs @benborla29/mcp-server-mysql
-```
-
 ### Common Issues
 
 1. **Connection Issues**
@@ -312,12 +413,48 @@ If you encounter an error "Could not connect to MCP server mcp-server-mysql", ex
 }
 ```
 
-5. **Authentication Issues**
+5. **Claude Desktop Specific Issues**
+   - If you see "Server disconnected" logs in Claude Desktop, check the logs at `~/Library/Logs/Claude/mcp-server-mcp_server_mysql.log`
+   - Ensure you're using the absolute path to both the Node binary and the server script
+   - Check if your `.env` file is being properly loaded; use explicit environment variables in the configuration
+   - Try running the server directly from the command line to see if there are connection issues
+   - If you need write operations (INSERT, UPDATE, DELETE), set the appropriate flags to "true" in your configuration:
+     ```json
+     "env": {
+       "ALLOW_INSERT_OPERATION": "true",  // Enable INSERT operations
+       "ALLOW_UPDATE_OPERATION": "true",  // Enable UPDATE operations
+       "ALLOW_DELETE_OPERATION": "true"   // Enable DELETE operations
+     }
+     ```
+   - Ensure your MySQL user has the appropriate permissions for the operations you're enabling
+   - For direct execution configuration, use:
+     ```json
+     {
+       "mcpServers": {
+         "mcp_server_mysql": {
+           "command": "/full/path/to/node",
+           "args": [
+             "/full/path/to/mcp-server-mysql/dist/index.js"
+           ],
+           "env": {
+             "MYSQL_HOST": "127.0.0.1",
+             "MYSQL_PORT": "3306",
+             "MYSQL_USER": "root",
+             "MYSQL_PASS": "your_password",
+             "MYSQL_DB": "your_database"
+           }
+         }
+       }
+     }
+     ```
+
+6. **Authentication Issues**
    - For MySQL 8.0+, ensure the server supports the `caching_sha2_password` authentication plugin
    - Check if your MySQL user is configured with the correct authentication method
    - Try creating a user with legacy authentication if needed:
      ```sql
      CREATE USER 'user'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
+     ```
 
 ## Contributing
 

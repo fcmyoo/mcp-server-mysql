@@ -15,13 +15,9 @@ async function setupTestDatabase() {
     host: process.env.MYSQL_HOST || '127.0.0.1',
     port: Number(process.env.MYSQL_PORT) || 3306,
     user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASS || 'root', // Default to 'root' if not specified
     multipleStatements: true
   };
-
-  // Only add password if it's set
-  if (process.env.MYSQL_PASS) {
-    config.password = process.env.MYSQL_PASS;
-  }
 
   // First connect without database to create it if needed
   const connection = await mysql.createConnection(config);

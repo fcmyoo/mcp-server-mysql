@@ -59,7 +59,7 @@ startCommand:
           "MYSQL_USER": config.mysqlUser,
           "MYSQL_PASS": config.mysqlPass,
           "MYSQL_DB": config.mysqlDb, 
-          "MYSQL_SSL: config.ssl, 
+          "MYSQL_SSL": config.ssl, 
           "MYSQL_SSL_REJECT_UNAUTHORIZED": config.rejectUnauthorizedSSL,
           "ALLOW_INSERT_OPERATION": config.allowInsertOperation,
           "ALLOW_UPDATE_OPERATION": config.allowUpdateOperation,

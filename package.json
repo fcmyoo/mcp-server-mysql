@@ -29,11 +29,10 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.0.1",
+    "@modelcontextprotocol/sdk": "1.8.0",
     "mysql2": "^3.13.0"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^0.1.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.17.9",
     "@typescript-eslint/parser": "^7.1.0",
@@ -52,6 +51,11 @@
   "keywords": [
     "node",
     "mcp",
-    "ai"
+    "ai",
+    "cursor",
+    "mcp-server",
+    "modelcontextprotocol",
+    "smithery",
+    "mcp-get"
   ]
 }

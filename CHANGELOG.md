@@ -34,6 +34,32 @@
   - Foreign key constraints
   - Table statistics
 
+## [1.0.14] - 2024-07-01
+
+### Added
+- Added better support for test environments with automatic database selection
+- Implemented comprehensive debug logging for database configuration in test mode
+- Added fail-safe process termination handling for test environments
+
+### Changed
+- Improved test environment detection with support for Vitest test runner
+- Enhanced MySQL connection configuration to use consistent defaults across environments
+- Updated error handling in database setup scripts to be more resilient
+
+### Fixed
+- Fixed "No database selected" error in integration tests by ensuring database name is always set
+- Fixed authentication issues in test environments by providing consistent default credentials
+- Prevented premature test termination by implementing conditional process.exit handling
+- Improved error handling in test database setup to continue tests even when setup encounters issues
+
+### Security
+- Made authentication more consistent across development and test environments
+- Added safeguards to prevent exposing actual password values in debug logs
+
+### Documentation
+- Added detailed inline comments for test-specific configurations
+- Improved error messages to provide better debugging information
+
 ## [1.0.13] - 2024-05-26
 
 ### Added

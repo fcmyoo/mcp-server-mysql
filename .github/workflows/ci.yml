@@ -56,4 +56,8 @@ jobs:
           MYSQL_USER: root
           MYSQL_PASS: ""
           MYSQL_DB: mcp_test
-
+          MYSQL_SSL: false
+          MYSQL_SSL_REJECT_UNAUTHORIZED: false
+          ALLOW_INSERT_OPERATION: true
+          ALLOW_UPDATE_OPERATION: true
+          ALLOW_DELETE_OPERATION: true

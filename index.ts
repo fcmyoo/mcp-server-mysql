@@ -109,7 +109,7 @@ const server = new Server(config.server, {
   },
 });
 
-async function executeQuery<T>(sql: string, params: any[] = []): Promise<T> {
+async function executeQuery<T>(sql: string, params: string[] = []): Promise<T> {
   let connection;
   try {
     connection = await pool.getConnection();
@@ -358,7 +358,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     const results = (await executeQuery(
       "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
-      [tableName],
+      [tableName as string],
     )) as ColumnRow[];
 
     return {

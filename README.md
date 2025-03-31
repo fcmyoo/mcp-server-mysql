@@ -1,3 +1,4 @@
+
 # MCP Server for MySQL based on NodeJS
 [![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 
@@ -79,6 +80,13 @@ The easiest way to install and configure this MCP server is through [Smithery](h
 ```bash
 npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql --client claude
 ```
+-- or --
+if you don't want to use smithery, use this
+```
+npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
+```
+Don't forget to replace the `env` values on that command.
+
 
 During configuration, you'll be prompted to enter your MySQL connection details. Smithery will automatically:
 - Set up the correct environment variables
@@ -489,6 +497,14 @@ echo "$(which node)/../../lib/node_modules"
      ```sql
      CREATE USER 'user'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
      ```
+     @lizhuangs
+
+7. I am encountering `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from` error
+try this workaround:
+```bash
+npx -y -p @benborla29/mcp-server-mysql -p dotenv mcp-server-mysql
+```
+Thanks to @lizhuangs
 
 ## Contributing
 

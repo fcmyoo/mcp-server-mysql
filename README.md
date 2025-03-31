@@ -54,8 +54,8 @@ To manually configure the MCP server for Claude Desktop App, add the following t
         "ALLOW_INSERT_OPERATION": "false",
         "ALLOW_UPDATE_OPERATION": "false",
         "ALLOW_DELETE_OPERATION": "false",
-        "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin",
-        "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules"
+           "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin", // <--- Important to add the following, run in your terminal `echo "$(which node)/../"` to get the path
+           "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules" // <--- Important to add the following, run in your terminal `echo "$(which node)/../../lib/node_modules"`
       }
     }
   }
@@ -432,6 +432,19 @@ If you encounter an error "Could not connect to MCP server mcp-server-mysql", ex
     "PATH": "/path/to/node/bin:/usr/bin:/bin"
   }
 }
+```
+
+*Where can I find my `node` bin path*
+Run the following command to get it:
+
+For **PATH**
+```bash
+echo "$(which node)/../"    
+```
+
+For **NODE_PATH**
+```bash
+echo "$(which node)/../../lib/node_modules"    
 ```
 
 5. **Claude Desktop Specific Issues**

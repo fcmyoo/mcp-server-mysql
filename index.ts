@@ -45,10 +45,37 @@ function safeExit(code: number): void {
   }
 }
 
+// Determine tool name and description based on enabled operations
+const toolName = "mysql_query";
+let toolDescription = "Run SQL queries against MySQL database";
+
+if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION) {
+  // At least one write operation is enabled
+  toolDescription += " with support for:";
+  
+  if (ALLOW_INSERT_OPERATION) {
+    toolDescription += " INSERT,";
+  }
+  
+  if (ALLOW_UPDATE_OPERATION) {
+    toolDescription += " UPDATE,";
+  }
+  
+  if (ALLOW_DELETE_OPERATION) {
+    toolDescription += " DELETE,";
+  }
+  
+  // Remove trailing comma and add READ operations
+  toolDescription = toolDescription.replace(/,$/, "") + " and READ operations";
+} else {
+  // Only read operations are allowed
+  toolDescription += " (READ-ONLY)";
+}
+
 const config = {
   server: {
     name: "@benborla29/mcp-server-mysql",
-    version: "0.1.13",
+    version: "0.1.18",
   },
   mysql: {
     host: process.env.MYSQL_HOST || "127.0.0.1",
@@ -70,19 +97,6 @@ const config = {
     schema: "schema",
   },
 };
-
-// Add more detailed debugging for test environments
-if (isTestEnvironment) {
-  console.error("TEST MODE: MySQL Configuration details:", {
-    host: config.mysql.host,
-    port: config.mysql.port,
-    user: config.mysql.user,
-    database: config.mysql.database || 'NOT SET',
-    password: config.mysql.password ? 'PRESENT' : 'MISSING',
-    env_db: process.env.MYSQL_DB || 'NOT SET IN ENV'
-  });
-}
-
 // Add debug logging for configuration
 console.error("MySQL Configuration:", JSON.stringify({
   host: config.mysql.host,
@@ -105,8 +119,22 @@ try {
 const server = new Server(config.server, {
   capabilities: {
     resources: {},
-    tools: {},
-  },
+    tools: {
+      mysql_query: {
+        description: toolDescription,
+        inputSchema: {
+          type: "object",
+          properties: {
+            sql: { 
+              type: "string", 
+              description: "The SQL query to execute" 
+            }
+          },
+          required: ["sql"]
+        }
+      }
+    }
+  }
 });
 
 async function executeQuery<T>(sql: string, params: string[] = []): Promise<T> {
@@ -379,34 +407,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   console.error("Handling ListToolsRequest");
   
-  // Determine tool name and description based on enabled operations
-  let toolName = "mysql_query";
-  let toolDescription = "Run SQL queries against MySQL database";
-  
-  if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION) {
-    // At least one write operation is enabled
-    toolDescription += " with support for:";
-    
-    if (ALLOW_INSERT_OPERATION) {
-      toolDescription += " INSERT,";
-    }
-    
-    if (ALLOW_UPDATE_OPERATION) {
-      toolDescription += " UPDATE,";
-    }
-    
-    if (ALLOW_DELETE_OPERATION) {
-      toolDescription += " DELETE,";
-    }
-    
-    // Remove trailing comma and add READ operations
-    toolDescription = toolDescription.replace(/,$/, "") + " and READ operations";
-  } else {
-    // Only read operations are allowed
-    toolDescription += " (READ-ONLY)";
-  }
-  
-  return {
+  const toolsResponse = {
     tools: [
       {
         name: toolName,
@@ -414,18 +415,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            sql: { type: "string" },
+            sql: { 
+              type: "string", 
+              description: "The SQL query to execute" 
+            }
           },
-        },
-      },
-    ],
+          required: ["sql"]
+        }
+      }
+    ]
   };
+  
+  console.error("ListToolsRequest response:", JSON.stringify(toolsResponse, null, 2));
+  return toolsResponse;
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     console.error("Handling CallToolRequest:", request.params.name);
-    if (request.params.name !== "mysql_query") {
+    if (request.params.name !== toolName) {
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
 

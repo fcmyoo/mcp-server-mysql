@@ -80,8 +80,7 @@ The easiest way to install and configure this MCP server is through [Smithery](h
 ```bash
 npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql --client claude
 ```
--- or --
-if you don't want to use smithery, use this
+or if you don't want to use smithery, use this
 ```
 npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
 ```

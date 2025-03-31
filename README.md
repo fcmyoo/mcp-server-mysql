@@ -107,7 +107,33 @@ Or if you don't want to use smithery, use this
 ```
 npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
 ```
-Don't forget to replace the `env` values on that command.
+Don't forget to replace the `env` values on that command. If you have the latest version of Cursor, just copy and paste the config below:
+
+`mcp.json`
+```json
+{
+  "mcpServers": {
+    "MySQL": {
+      "command": "npx",
+      "args": [
+        "mcprunner",
+        "MYSQL_HOST=127.0.0.1",
+        "MYSQL_PORT=3306",
+        "MYSQL_USER=root",
+        "MYSQL_PASS=root",
+        "MYSQL_DB=demostore",
+        "ALLOW_INSERT_OPERATION=true",
+        "ALLOW_UPDATE_OPERATION=true",
+        "ALLOW_DELETE_OPERATION=false",
+        "--",
+        "npx",
+        "-y",
+        "@benborla29/mcp-server-mysql"
+      ]
+    }
+  }
+}
+```
 
 ### Using MCP Get
 

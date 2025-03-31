@@ -7,9 +7,10 @@ import {
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js'
-import * as mysql2 from 'mysql2/promise'
-import * as dotenv from 'dotenv'
+} from "@modelcontextprotocol/sdk/types.js";
+import * as mysql2 from "mysql2/promise";
+import * as dotenv from "dotenv";
+import SqlParser, { AST } from 'node-sql-parser';
 
 export interface TableRow {
   table_name: string
@@ -278,6 +279,27 @@ const getServer = (): Promise<Server> => {
   return serverInstance
 }
 
+const { Parser } = SqlParser;
+const parser = new Parser();
+
+async function getQueryTypes(query: string): Promise<string[]> {
+  try {
+    console.log("Parsing SQL query: ", query);
+    // Parse into AST or array of ASTs
+    const astOrArray: AST | AST[] = parser.astify(query, { database: 'mysql' });
+    const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
+
+    console.log("Parsed SQL AST: ", statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown'));
+    
+    // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
+    return statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown');
+  } catch (err: any) {
+    console.error("sqlParser error, query: ", query);
+    console.error('Error parsing SQL query:', err);
+    throw new Error(`Parsing failed: ${err.message}`);
+  }
+}
+
 async function executeQuery<T>(
   sql: string,
   params: string[] = [],
@@ -304,9 +326,17 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
   let connection
   try {
     // @INFO: Check if the query is a write operation
-    const normalizedSql = sql.trim().toUpperCase()
+    const normalizedSql = sql.trim().toUpperCase();
     
-    if (normalizedSql.startsWith('INSERT') && !ALLOW_INSERT_OPERATION) {
+    // Check the type of query
+    // possible types: "replace" | "update" | "insert" | "delete" | "use" | "select" | "alter" | "create" | "drop"
+    const queryTypes = await getQueryTypes(normalizedSql);
+    const isUpdateOperation = queryTypes.some(type => ['update'].includes(type)); 
+    const isInsertOperation = queryTypes.some(type => ['insert'].includes(type)); 
+    const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type)); 
+    
+    
+    if (isInsertOperation && !ALLOW_INSERT_OPERATION) {
       console.error(
         'INSERT operations are not allowed. Set ALLOW_INSERT_OPERATION=true to enable.',
       )
@@ -321,7 +351,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       } as T
     }
     
-    if (normalizedSql.startsWith('UPDATE') && !ALLOW_UPDATE_OPERATION) {
+    if (isUpdateOperation && !ALLOW_UPDATE_OPERATION) {
       console.error(
         'UPDATE operations are not allowed. Set ALLOW_UPDATE_OPERATION=true to enable.',
       )
@@ -336,7 +366,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       } as T
     }
     
-    if (normalizedSql.startsWith('DELETE') && !ALLOW_DELETE_OPERATION) {
+    if (isDeleteOperation && !ALLOW_DELETE_OPERATION) {
       console.error(
         'DELETE operations are not allowed. Set ALLOW_DELETE_OPERATION=true to enable.',
       )
@@ -353,9 +383,9 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
 
     // @INFO: For write operations that are allowed, use executeWriteQuery
     if (
-      (normalizedSql.startsWith('INSERT') && ALLOW_INSERT_OPERATION) ||
-      (normalizedSql.startsWith('UPDATE') && ALLOW_UPDATE_OPERATION) ||
-      (normalizedSql.startsWith('DELETE') && ALLOW_DELETE_OPERATION)
+      (isInsertOperation && ALLOW_INSERT_OPERATION) ||
+      (isUpdateOperation && ALLOW_UPDATE_OPERATION) ||
+      (isDeleteOperation && ALLOW_DELETE_OPERATION)
     ) {
       return executeWriteQuery(sql)
     }
@@ -441,14 +471,22 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
       let responseText
       const normalizedSql = sql.trim().toUpperCase()
       
+      // Check the type of query
+      // possible types: "replace" | "update" | "insert" | "delete" | "use" | "select" | "alter" | "create" | "drop"
+      const queryTypes = await getQueryTypes(normalizedSql);
+      const isUpdateOperation = queryTypes.some(type => ['update'].includes(type)); 
+      const isInsertOperation = queryTypes.some(type => ['insert'].includes(type)); 
+      const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type)); 
+    
+
       // @INFO: Type assertion for ResultSetHeader which has affectedRows, insertId, etc.
-      if (normalizedSql.startsWith('INSERT')) {
+      if (isInsertOperation) {
         const resultHeader = response as mysql2.ResultSetHeader
         responseText = `Insert successful. Affected rows: ${resultHeader.affectedRows}, Last insert ID: ${resultHeader.insertId}`
-      } else if (normalizedSql.startsWith('UPDATE')) {
+      } else if (isUpdateOperation) {
         const resultHeader = response as mysql2.ResultSetHeader
         responseText = `Update successful. Affected rows: ${resultHeader.affectedRows}, Changed rows: ${resultHeader.changedRows || 0}`
-      } else if (normalizedSql.startsWith('DELETE')) {
+      } else if (isDeleteOperation ) {
         const resultHeader = response as mysql2.ResultSetHeader
         responseText = `Delete successful. Affected rows: ${resultHeader.affectedRows}`
       } else {

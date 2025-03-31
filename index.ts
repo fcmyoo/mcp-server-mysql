@@ -45,8 +45,6 @@ function safeExit(code: number): void {
   }
 }
 
-// Determine tool name and description based on enabled operations
-const toolName = "mysql_query";
 let toolDescription = "Run SQL queries against MySQL database";
 
 if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION) {
@@ -76,7 +74,7 @@ const config = {
   server: {
     name: "@benborla29/mcp-server-mysql",
     version: "0.1.18",
-    connectionTypes: ["stdio"], // Only support stdio connections, disable WebSocket
+    connectionTypes: ["stdio"],
   },
   mysql: {
     host: process.env.MYSQL_HOST || "127.0.0.1",

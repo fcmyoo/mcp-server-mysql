@@ -40,9 +40,10 @@ To manually configure the MCP server for Claude Desktop App, add the following t
 {
   "mcpServers": {
     "mcp_server_mysql": {
-      "command": "/path/to/node",
+      "command": "npx",
       "args": [
-        "/full/path/to/mcp-server-mysql/dist/index.js"
+        "-y",
+        "@benborla29/mcp-server-mysql"
       ],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
@@ -52,7 +53,9 @@ To manually configure the MCP server for Claude Desktop App, add the following t
         "MYSQL_DB": "your_database",
         "ALLOW_INSERT_OPERATION": "false",
         "ALLOW_UPDATE_OPERATION": "false",
-        "ALLOW_DELETE_OPERATION": "false"
+        "ALLOW_DELETE_OPERATION": "false",
+        "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin",
+        "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules"
       }
     }
   }
@@ -166,7 +169,9 @@ If you want to clone and run this MCP server directly from the source code, foll
            "MYSQL_DB": "your_database",
            "ALLOW_INSERT_OPERATION": "false",
            "ALLOW_UPDATE_OPERATION": "false",
-           "ALLOW_DELETE_OPERATION": "false"
+           "ALLOW_DELETE_OPERATION": "false",
+           "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin", // <--- Important to add the following, run in your terminal `echo "$(which node)/../"` to get the path
+           "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules" // <--- Important to add the following, run in your terminal `echo "$(which node)/../../lib/node_modules"`
          }
        }
      }

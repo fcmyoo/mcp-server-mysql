@@ -76,6 +76,7 @@ const config = {
   server: {
     name: "@benborla29/mcp-server-mysql",
     version: "0.1.18",
+    connectionTypes: ["stdio"], // Only support stdio connections, disable WebSocket
   },
   mysql: {
     host: process.env.MYSQL_HOST || "127.0.0.1",
@@ -410,7 +411,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   const toolsResponse = {
     tools: [
       {
-        name: toolName,
+        name: "mysql_query",
         description: toolDescription,
         inputSchema: {
           type: "object",
@@ -433,7 +434,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     console.error("Handling CallToolRequest:", request.params.name);
-    if (request.params.name !== toolName) {
+    if (request.params.name !== "mysql_query") {
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
 

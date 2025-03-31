@@ -67,11 +67,37 @@ To manually configure the MCP server for Claude Desktop App, add the following t
 
 For Cursor IDE, you can install this MCP server with the following command in your project:
 
-```bash
-npm install -g @benborla29/mcp-server-mysql
-```
 
-Then configure it in your Cursor settings.
+```
+npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
+```
+Don't forget to replace the `env` values on that command. If you have the latest version (for v0.47 and above) of Cursor, just copy and paste the config below:
+
+`mcp.json`
+```json
+{
+  "mcpServers": {
+    "MySQL": {
+      "command": "npx",
+      "args": [
+        "mcprunner",
+        "MYSQL_HOST=127.0.0.1",
+        "MYSQL_PORT=3306",
+        "MYSQL_USER=root",
+        "MYSQL_PASS=root",
+        "MYSQL_DB=demostore",
+        "ALLOW_INSERT_OPERATION=true",
+        "ALLOW_UPDATE_OPERATION=true",
+        "ALLOW_DELETE_OPERATION=false",
+        "--",
+        "npx",
+        "-y",
+        "@benborla29/mcp-server-mysql"
+      ]
+    }
+  }
+}
+```
 
 ### Using Smithery
 
@@ -102,38 +128,6 @@ The installation will ask for the following connection details:
   - Allow DELETE operations (default: false)
 
 For security reasons, write operations are disabled by default. Enable them only if you need Claude to modify your database data.
-
-Or if you don't want to use smithery, use this
-```
-npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
-```
-Don't forget to replace the `env` values on that command. If you have the latest version of Cursor, just copy and paste the config below:
-
-`mcp.json`
-```json
-{
-  "mcpServers": {
-    "MySQL": {
-      "command": "npx",
-      "args": [
-        "mcprunner",
-        "MYSQL_HOST=127.0.0.1",
-        "MYSQL_PORT=3306",
-        "MYSQL_USER=root",
-        "MYSQL_PASS=root",
-        "MYSQL_DB=demostore",
-        "ALLOW_INSERT_OPERATION=true",
-        "ALLOW_UPDATE_OPERATION=true",
-        "ALLOW_DELETE_OPERATION=false",
-        "--",
-        "npx",
-        "-y",
-        "@benborla29/mcp-server-mysql"
-      ]
-    }
-  }
-}
-```
 
 ### Using MCP Get
 

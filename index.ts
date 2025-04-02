@@ -12,6 +12,11 @@ import * as mysql2 from "mysql2/promise";
 import * as dotenv from "dotenv";
 import SqlParser, { AST } from 'node-sql-parser';
 
+// Define interfaces for schema-specific permissions
+interface SchemaPermissions {
+  [schema: string]: boolean
+}
+
 export interface TableRow {
   table_name: string
 }
@@ -29,10 +34,25 @@ if (process.env.NODE_ENV === 'test' && !process.env.MYSQL_DB) {
   process.env.MYSQL_DB = 'mcp_test_db' // @INFO: Ensure we have a database name for tests
 }
 
-// @INFO: Write operation flags
+// Write operation flags (global defaults)
 const ALLOW_INSERT_OPERATION = process.env.ALLOW_INSERT_OPERATION === 'true'
 const ALLOW_UPDATE_OPERATION = process.env.ALLOW_UPDATE_OPERATION === 'true'
 const ALLOW_DELETE_OPERATION = process.env.ALLOW_DELETE_OPERATION === 'true'
+const ALLOW_DDL_OPERATION = process.env.ALLOW_DDL_OPERATION === 'true'
+
+// Schema-specific permissions
+const SCHEMA_INSERT_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(process.env.SCHEMA_INSERT_PERMISSIONS)
+const SCHEMA_UPDATE_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(process.env.SCHEMA_UPDATE_PERMISSIONS)
+const SCHEMA_DELETE_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(process.env.SCHEMA_DELETE_PERMISSIONS)
+const SCHEMA_DDL_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(process.env.SCHEMA_DDL_PERMISSIONS)
+
+// Check if we're in multi-DB mode (no specific DB set)
+const isMultiDbMode = !process.env.MYSQL_DB || process.env.MYSQL_DB.trim() === ''
+
+// Force read-only mode in multi-DB mode unless explicitly configured otherwise
+if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== 'true') {
+  console.error('Multi-DB mode detected - enabling read-only mode for safety')
+}
 
 // @INFO: Check if running in test mode
 const isTestEnvironment =
@@ -47,10 +67,101 @@ function safeExit(code: number): void {
   }
 }
 
+// Function to parse schema-specific permissions from environment variables
+function parseSchemaPermissions(permissionsString?: string): SchemaPermissions {
+  const permissions: SchemaPermissions = {}
+  
+  if (!permissionsString) {
+    return permissions
+  }
+  
+  // Format: "schema1:true,schema2:false"
+  const permissionPairs = permissionsString.split(',')
+  
+  for (const pair of permissionPairs) {
+    const [schema, value] = pair.split(':')
+    if (schema && value) {
+      permissions[schema.trim()] = value.trim() === 'true'
+    }
+  }
+  
+  return permissions
+}
+
+// Schema permission checking functions
+function isInsertAllowedForSchema(schema: string | null): boolean {
+  if (!schema) {
+    return ALLOW_INSERT_OPERATION
+  }
+  return schema in SCHEMA_INSERT_PERMISSIONS 
+    ? SCHEMA_INSERT_PERMISSIONS[schema] 
+    : ALLOW_INSERT_OPERATION
+}
+
+function isUpdateAllowedForSchema(schema: string | null): boolean {
+  if (!schema) {
+    return ALLOW_UPDATE_OPERATION
+  }
+  return schema in SCHEMA_UPDATE_PERMISSIONS 
+    ? SCHEMA_UPDATE_PERMISSIONS[schema] 
+    : ALLOW_UPDATE_OPERATION
+}
+
+function isDeleteAllowedForSchema(schema: string | null): boolean {
+  if (!schema) {
+    return ALLOW_DELETE_OPERATION
+  }
+  return schema in SCHEMA_DELETE_PERMISSIONS 
+    ? SCHEMA_DELETE_PERMISSIONS[schema] 
+    : ALLOW_DELETE_OPERATION
+}
+
+function isDDLAllowedForSchema(schema: string | null): boolean {
+  if (!schema) {
+    return ALLOW_DDL_OPERATION
+  }
+  return schema in SCHEMA_DDL_PERMISSIONS 
+    ? SCHEMA_DDL_PERMISSIONS[schema] 
+    : ALLOW_DDL_OPERATION
+}
+
+// Extract schema from SQL query
+function extractSchemaFromQuery(sql: string): string | null {
+  // Default schema from environment
+  const defaultSchema = process.env.MYSQL_DB || null
+  
+  // If we have a default schema and not in multi-DB mode, return it
+  if (defaultSchema && !isMultiDbMode) {
+    return defaultSchema
+  }
+  
+  // Try to extract schema from query
+  
+  // Case 1: USE database statement
+  const useMatch = sql.match(/USE\s+`?([a-zA-Z0-9_]+)`?/i)
+  if (useMatch && useMatch[1]) {
+    return useMatch[1]
+  }
+  
+  // Case 2: database.table notation
+  const dbTableMatch = sql.match(/`?([a-zA-Z0-9_]+)`?\.`?[a-zA-Z0-9_]+`?/i)
+  if (dbTableMatch && dbTableMatch[1]) {
+    return dbTableMatch[1]
+  }
+  
+  // Return default if we couldn't find a schema in the query
+  return defaultSchema
+}
+
+// Update tool description to include multi-DB mode and schema-specific permissions
 let toolDescription = 'Run SQL queries against MySQL database'
 
-if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION) {
-  // @INFO: At least one write operation is enabled
+if (isMultiDbMode) {
+  toolDescription += ' (Multi-DB mode enabled)'
+}
+
+if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION || ALLOW_DDL_OPERATION) {
+  // At least one write operation is enabled
   toolDescription += ' with support for:'
   
   if (ALLOW_INSERT_OPERATION) {
@@ -65,13 +176,25 @@ if (ALLOW_INSERT_OPERATION || ALLOW_UPDATE_OPERATION || ALLOW_DELETE_OPERATION) 
     toolDescription += ' DELETE,'
   }
   
-  // @INFO: Remove trailing comma and add READ operations
+  if (ALLOW_DDL_OPERATION) {
+    toolDescription += ' DDL,'
+  }
+  
+  // Remove trailing comma and add READ operations
   toolDescription = toolDescription.replace(/,$/, '') + ' and READ operations'
+  
+  if (Object.keys(SCHEMA_INSERT_PERMISSIONS).length > 0 ||
+      Object.keys(SCHEMA_UPDATE_PERMISSIONS).length > 0 ||
+      Object.keys(SCHEMA_DELETE_PERMISSIONS).length > 0 ||
+      Object.keys(SCHEMA_DDL_PERMISSIONS).length > 0) {
+    toolDescription += ' (Schema-specific permissions enabled)'
+  }
 } else {
-  // @INFO: Only read operations are allowed
+  // Only read operations are allowed
   toolDescription += ' (READ-ONLY)'
 }
 
+// Update MySQL config to handle blank database name
 const config = {
   server: {
     name: '@benborla29/mcp-server-mysql',
@@ -83,7 +206,7 @@ const config = {
     port: Number(process.env.MYSQL_PORT || '3306'),
     user: process.env.MYSQL_USER || 'root',
     password: process.env.MYSQL_PASS || 'root',
-    database: process.env.MYSQL_DB || 'mcp_test_db', // @INFO: Default to test database if not specified
+    database: process.env.MYSQL_DB || undefined, // Allow undefined database for multi-DB mode
     connectionLimit: 10,
     authPlugins: {
       mysql_clear_password: () => () =>
@@ -112,8 +235,9 @@ console.error(
       port: config.mysql.port,
       user: config.mysql.user,
       password: config.mysql.password ? '******' : 'not set',
-      database: config.mysql.database,
+      database: config.mysql.database || 'MULTI_DB_MODE',
       ssl: process.env.MYSQL_SSL === 'true' ? 'enabled' : 'disabled',
+      multiDbMode: isMultiDbMode ? 'enabled' : 'disabled',
     },
     null,
     2,
@@ -170,19 +294,55 @@ const getServer = (): Promise<Server> => {
         async () => {
           try {
             console.error('Handling ListResourcesRequest')
-            const results = (await executeQuery(
-              'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()',
-            )) as TableRow[]
+            
+            // If we're in multi-DB mode, list all databases first
+            if (isMultiDbMode) {
+              const databases = (await executeQuery(
+                'SHOW DATABASES'
+              )) as { Database: string }[]
+              
+              // For each database, list tables
+              let allResources = []
+              
+              for (const db of databases) {
+                // Skip system databases
+                if (['information_schema', 'mysql', 'performance_schema', 'sys'].includes(db.Database)) {
+                  continue
+                }
+                
+                const tables = (await executeQuery(
+                  `SELECT table_name FROM information_schema.tables WHERE table_schema = '${db.Database}'`
+                )) as TableRow[]
+                
+                allResources.push(...tables.map((row: TableRow) => ({
+                  uri: new URL(
+                    `${db.Database}/${row.table_name}/${config.paths.schema}`,
+                    `${config.mysql.host}:${config.mysql.port}`,
+                  ).href,
+                  mimeType: 'application/json',
+                  name: `"${db.Database}.${row.table_name}" database schema`,
+                })))
+              }
+              
+              return {
+                resources: allResources,
+              }
+            } else {
+              // Original behavior for single database mode
+              const results = (await executeQuery(
+                'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()',
+              )) as TableRow[]
 
-            return {
-              resources: results.map((row: TableRow) => ({
-                uri: new URL(
-                  `${row.table_name}/${config.paths.schema}`,
-                  `${config.mysql.host}:${config.mysql.port}`,
-                ).href,
-                mimeType: 'application/json',
-                name: `"${row.table_name}" database schema`,
-              })),
+              return {
+                resources: results.map((row: TableRow) => ({
+                  uri: new URL(
+                    `${row.table_name}/${config.paths.schema}`,
+                    `${config.mysql.host}:${config.mysql.port}`,
+                  ).href,
+                  mimeType: 'application/json',
+                  name: `"${row.table_name}" database schema`,
+                })),
+              }
             }
           } catch (error) {
             console.error('Error in ListResourcesRequest handler:', error)
@@ -200,14 +360,29 @@ const getServer = (): Promise<Server> => {
             const pathComponents = resourceUrl.pathname.split('/')
             const schema = pathComponents.pop()
             const tableName = pathComponents.pop()
+            let dbName = null
+            
+            // In multi-DB mode, we expect a database name in the path
+            if (isMultiDbMode && pathComponents.length > 0) {
+              dbName = pathComponents.pop() || null
+            }
 
             if (schema !== config.paths.schema) {
               throw new Error('Invalid resource URI')
             }
+            
+            // Modify query to include schema information
+            let columnsQuery = 'SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?'
+            let queryParams = [tableName as string]
+            
+            if (dbName) {
+              columnsQuery += ' AND table_schema = ?'
+              queryParams.push(dbName)
+            }
 
             const results = (await executeQuery(
-              'SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?',
-              [tableName as string],
+              columnsQuery,
+              queryParams,
             )) as ColumnRow[]
 
             return {
@@ -302,7 +477,7 @@ async function getQueryTypes(query: string): Promise<string[]> {
 
 async function executeQuery<T>(
   sql: string,
-  params: string[] = [],
+  params: any[] = [],
 ): Promise<T> {
   let connection
   try {
@@ -325,91 +500,109 @@ async function executeQuery<T>(
 async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
   let connection
   try {
-    // @INFO: Check if the query is a write operation
-    const normalizedSql = sql.trim().toUpperCase();
-    
     // Check the type of query
-    // possible types: "replace" | "update" | "insert" | "delete" | "use" | "select" | "alter" | "create" | "drop"
-    const queryTypes = await getQueryTypes(normalizedSql);
+    const queryTypes = await getQueryTypes(sql);
+    
+    // Get schema for permission checking
+    const schema = extractSchemaFromQuery(sql)
+    
     const isUpdateOperation = queryTypes.some(type => ['update'].includes(type)); 
     const isInsertOperation = queryTypes.some(type => ['insert'].includes(type)); 
-    const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type)); 
+    const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type));
+    const isDDLOperation = queryTypes.some(type => 
+      ['create', 'alter', 'drop', 'truncate'].includes(type));
     
-    
-    if (isInsertOperation && !ALLOW_INSERT_OPERATION) {
+    // Check schema-specific permissions
+    if (isInsertOperation && !isInsertAllowedForSchema(schema)) {
       console.error(
-        'INSERT operations are not allowed. Set ALLOW_INSERT_OPERATION=true to enable.',
+        `INSERT operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_INSERT_PERMISSIONS.`,
       )
       return {
         content: [
           {
             type: 'text',
-            text: 'Error: INSERT operations are not allowed. Ask the administrator to enable ALLOW_INSERT_OPERATION.',
+            text: `Error: INSERT operations are not allowed for schema '${schema || 'default'}'. Ask the administrator to update SCHEMA_INSERT_PERMISSIONS.`,
           },
         ],
         isError: true,
       } as T
     }
     
-    if (isUpdateOperation && !ALLOW_UPDATE_OPERATION) {
+    if (isUpdateOperation && !isUpdateAllowedForSchema(schema)) {
       console.error(
-        'UPDATE operations are not allowed. Set ALLOW_UPDATE_OPERATION=true to enable.',
+        `UPDATE operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_UPDATE_PERMISSIONS.`,
       )
       return {
         content: [
           {
             type: 'text',
-            text: 'Error: UPDATE operations are not allowed. Ask the administrator to enable ALLOW_UPDATE_OPERATION.',
+            text: `Error: UPDATE operations are not allowed for schema '${schema || 'default'}'. Ask the administrator to update SCHEMA_UPDATE_PERMISSIONS.`,
           },
         ],
         isError: true,
       } as T
     }
     
-    if (isDeleteOperation && !ALLOW_DELETE_OPERATION) {
+    if (isDeleteOperation && !isDeleteAllowedForSchema(schema)) {
       console.error(
-        'DELETE operations are not allowed. Set ALLOW_DELETE_OPERATION=true to enable.',
+        `DELETE operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_DELETE_PERMISSIONS.`,
       )
       return {
         content: [
           {
             type: 'text',
-            text: 'Error: DELETE operations are not allowed. Ask the administrator to enable ALLOW_DELETE_OPERATION.',
+            text: `Error: DELETE operations are not allowed for schema '${schema || 'default'}'. Ask the administrator to update SCHEMA_DELETE_PERMISSIONS.`,
+          },
+        ],
+        isError: true,
+      } as T
+    }
+    
+    if (isDDLOperation && !isDDLAllowedForSchema(schema)) {
+      console.error(
+        `DDL operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_DDL_PERMISSIONS.`,
+      )
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: DDL operations are not allowed for schema '${schema || 'default'}'. Ask the administrator to update SCHEMA_DDL_PERMISSIONS.`,
           },
         ],
         isError: true,
       } as T
     }
 
-    // @INFO: For write operations that are allowed, use executeWriteQuery
+    // For write operations that are allowed, use executeWriteQuery
     if (
-      (isInsertOperation && ALLOW_INSERT_OPERATION) ||
-      (isUpdateOperation && ALLOW_UPDATE_OPERATION) ||
-      (isDeleteOperation && ALLOW_DELETE_OPERATION)
+      (isInsertOperation && isInsertAllowedForSchema(schema)) ||
+      (isUpdateOperation && isUpdateAllowedForSchema(schema)) ||
+      (isDeleteOperation && isDeleteAllowedForSchema(schema)) ||
+      (isDDLOperation && isDDLAllowedForSchema(schema))
     ) {
       return executeWriteQuery(sql)
     }
     
-    // @INFO: For read-only operations, continue with the original logic
+    // For read-only operations, continue with the original logic
     const pool = await getPool()
     connection = await pool.getConnection()
     console.error('Read-only connection acquired')
 
-    // @INFO: Set read-only mode
+    // Set read-only mode
     await connection.query('SET SESSION TRANSACTION READ ONLY')
 
-    // @INFO: Begin transaction
+    // Begin transaction
     await connection.beginTransaction()
 
     try {
-      // @INFO: Execute query
+      // Execute query - in multi-DB mode, we may need to handle USE statements specially
       const result = await connection.query(sql)
       const rows = Array.isArray(result) ? result[0] : result
 
-      // @INFO: Rollback transaction (since it's read-only)
+      // Rollback transaction (since it's read-only)
       await connection.rollback()
 
-      // @INFO: Reset to read-write mode
+      // Reset to read-write mode
       await connection.query('SET SESSION TRANSACTION READ WRITE')
 
       return {
@@ -422,13 +615,13 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
         isError: false,
       } as T
     } catch (error) {
-      // @INFO: Rollback transaction on query error
+      // Rollback transaction on query error
       console.error('Error executing read-only query:', error)
       await connection.rollback()
       throw error
     }
   } catch (error) {
-    // @INFO: Ensure we rollback and reset transaction mode on any error
+    // Ensure we rollback and reset transaction mode on any error
     console.error('Error in read-only query transaction:', error)
     try {
       if (connection) {
@@ -436,7 +629,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
         await connection.query('SET SESSION TRANSACTION READ WRITE')
       }
     } catch (cleanupError) {
-      // @INFO: Ignore errors during cleanup
+      // Ignore errors during cleanup
       console.error('Error during cleanup:', cleanupError)
     }
     throw error
@@ -456,6 +649,9 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
     connection = await pool.getConnection()
     console.error('Write connection acquired')
 
+    // Extract schema for permissions (if needed)
+    const schema = extractSchemaFromQuery(sql)
+
     // @INFO: Begin transaction for write operation
     await connection.beginTransaction()
 
@@ -469,26 +665,28 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
       
       // @INFO: Format the response based on operation type
       let responseText
-      const normalizedSql = sql.trim().toUpperCase()
       
       // Check the type of query
-      // possible types: "replace" | "update" | "insert" | "delete" | "use" | "select" | "alter" | "create" | "drop"
-      const queryTypes = await getQueryTypes(normalizedSql);
+      const queryTypes = await getQueryTypes(sql);
       const isUpdateOperation = queryTypes.some(type => ['update'].includes(type)); 
       const isInsertOperation = queryTypes.some(type => ['insert'].includes(type)); 
-      const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type)); 
+      const isDeleteOperation = queryTypes.some(type => ['delete'].includes(type));
+      const isDDLOperation = queryTypes.some(type => 
+        ['create', 'alter', 'drop', 'truncate'].includes(type));
     
 
       // @INFO: Type assertion for ResultSetHeader which has affectedRows, insertId, etc.
       if (isInsertOperation) {
         const resultHeader = response as mysql2.ResultSetHeader
-        responseText = `Insert successful. Affected rows: ${resultHeader.affectedRows}, Last insert ID: ${resultHeader.insertId}`
+        responseText = `Insert successful on schema '${schema || 'default'}'. Affected rows: ${resultHeader.affectedRows}, Last insert ID: ${resultHeader.insertId}`
       } else if (isUpdateOperation) {
         const resultHeader = response as mysql2.ResultSetHeader
-        responseText = `Update successful. Affected rows: ${resultHeader.affectedRows}, Changed rows: ${resultHeader.changedRows || 0}`
-      } else if (isDeleteOperation ) {
+        responseText = `Update successful on schema '${schema || 'default'}'. Affected rows: ${resultHeader.affectedRows}, Changed rows: ${resultHeader.changedRows || 0}`
+      } else if (isDeleteOperation) {
         const resultHeader = response as mysql2.ResultSetHeader
-        responseText = `Delete successful. Affected rows: ${resultHeader.affectedRows}`
+        responseText = `Delete successful on schema '${schema || 'default'}'. Affected rows: ${resultHeader.affectedRows}`
+      } else if (isDDLOperation) {
+        responseText = `DDL operation successful on schema '${schema || 'default'}'.`
       } else {
         responseText = JSON.stringify(response, null, 2)
       }

@@ -17,6 +17,8 @@ A Model Context Protocol server that provides access to MySQL databases. This se
 - [Components](#components)
 - [Configuration](#configuration)
 - [Environment Variables](#environment-variables)
+- [Multi-DB Mode](#multi-db-mode)
+- [Schema-Specific Permissions](#schema-specific-permissions)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -348,7 +350,7 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `MYSQL_PORT`: MySQL server port (default: "3306")
 - `MYSQL_USER`: MySQL username (default: "root")
 - `MYSQL_PASS`: MySQL password
-- `MYSQL_DB`: Target database name
+- `MYSQL_DB`: Target database name (leave empty for multi-DB mode)
 
 ### Performance Configuration
 - `MYSQL_POOL_SIZE`: Connection pool size (default: "10")
@@ -362,11 +364,49 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `ALLOW_INSERT_OPERATION`: Enable INSERT operations (default: "false")
 - `ALLOW_UPDATE_OPERATION`: Enable UPDATE operations (default: "false")
 - `ALLOW_DELETE_OPERATION`: Enable DELETE operations (default: "false")
+- `ALLOW_DDL_OPERATION`: Enable DDL operations (default: "false")
+- `SCHEMA_INSERT_PERMISSIONS`: Schema-specific INSERT permissions
+- `SCHEMA_UPDATE_PERMISSIONS`: Schema-specific UPDATE permissions
+- `SCHEMA_DELETE_PERMISSIONS`: Schema-specific DELETE permissions
+- `SCHEMA_DDL_PERMISSIONS`: Schema-specific DDL permissions
+- `MULTI_DB_WRITE_MODE`: Enable write operations in multi-DB mode (default: "false")
 
 ### Monitoring Configuration
 - `MYSQL_ENABLE_LOGGING`: Enable query logging (default: "false")
 - `MYSQL_LOG_LEVEL`: Logging level (default: "info")
 - `MYSQL_METRICS_ENABLED`: Enable performance metrics (default: "false")
+
+## Multi-DB Mode
+
+MCP-Server-MySQL supports connecting to multiple databases when no specific database is set. This allows the LLM to query any database the MySQL user has access to. For full details, see [README-MULTI-DB.md](./README-MULTI-DB.md).
+
+### Enabling Multi-DB Mode
+
+To enable multi-DB mode, simply leave the `MYSQL_DB` environment variable empty. In multi-DB mode, queries require schema qualification:
+
+```sql
+-- Use fully qualified table names
+SELECT * FROM database_name.table_name;
+
+-- Or use USE statements to switch between databases
+USE database_name;
+SELECT * FROM table_name;
+```
+
+## Schema-Specific Permissions
+
+For fine-grained control over database operations, MCP-Server-MySQL now supports schema-specific permissions. This allows different databases to have different levels of access (read-only, read-write, etc.).
+
+### Configuration Example
+
+```
+SCHEMA_INSERT_PERMISSIONS=development:true,test:true,production:false
+SCHEMA_UPDATE_PERMISSIONS=development:true,test:true,production:false
+SCHEMA_DELETE_PERMISSIONS=development:false,test:true,production:false
+SCHEMA_DDL_PERMISSIONS=development:false,test:true,production:false
+```
+
+For complete details and security recommendations, see [README-MULTI-DB.md](./README-MULTI-DB.md).
 
 ## Testing
 

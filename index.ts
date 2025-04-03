@@ -477,13 +477,13 @@ async function getQueryTypes(query: string): Promise<string[]> {
 
 async function executeQuery<T>(
   sql: string,
-  params: any[] = [],
+  params: string[] = [],
 ): Promise<T> {
   let connection
   try {
     const pool = await getPool()
     connection = await pool.getConnection()
-    const result = await connection.query(sql, params)
+    const result = await connection.query(sql.toLocaleLowerCase(), params)
     return (Array.isArray(result) ? result[0] : result) as T
   } catch (error) {
     log('error', 'Error executing query:', error)
@@ -599,7 +599,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
 
     try {
       // Execute query - in multi-DB mode, we may need to handle USE statements specially
-      const result = await connection.query(sql)
+      const result = await connection.query(sql.toLocaleLowerCase())
       const rows = Array.isArray(result) ? result[0] : result
 
       // Rollback transaction (since it's read-only)
@@ -660,7 +660,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
 
     try {
       // @INFO: Execute the write query
-      const result = await connection.query(sql)
+      const result = await connection.query(sql.toLocaleLowerCase())
       const response = Array.isArray(result) ? result[0] : result
       
       // @INFO: Commit the transaction

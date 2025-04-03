@@ -1,5 +1,5 @@
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import * as mysql2 from 'mysql2/promise';
+import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
@@ -8,6 +8,26 @@ const __dirname = dirname(__filename);
 
 // Load test environment variables
 dotenv.config({ path: resolve(__dirname, '../.env.test') });
+
+// Logging configuration
+const ENABLE_LOGGING = process.env.ENABLE_LOGGING === '1'
+
+type LogType = 'info' | 'error'
+
+function log(type: LogType = 'info', ...args: any[]): void {
+  if (!ENABLE_LOGGING) return
+
+  switch (type) {
+    case 'info':
+      console.info(...args)
+      break
+    case 'error':
+      console.error(...args)
+      break
+    default:
+      console.log(...args)
+  }
+}
 
 async function setupTestDatabase() {
   // Create connection config, omitting password if empty
@@ -20,7 +40,7 @@ async function setupTestDatabase() {
   };
 
   // First connect without database to create it if needed
-  const connection = await mysql.createConnection(config);
+  const connection = await mysql2.createConnection(config);
 
   // Use a unique database name for tests to avoid conflicts with existing tables
   const dbName = process.env.MYSQL_DB || 'mcp_test_db';
@@ -85,11 +105,14 @@ async function setupTestDatabase() {
     // Re-enable foreign key checks
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
-    console.log('Test database setup completed successfully');
+    log('info', 'Test database setup completed successfully');
   } catch (error) {
-    console.error('Error setting up test database:', error);
-    // Don't throw the error, but log it - this allows tests to continue
-    // Tests that need the database will fail on their own with appropriate errors
+    log('error', 'Error setting up test database:', error);
+    if (process.env.CI) {
+      log('error', 'Database setup failed, but continuing with tests:', error.message);
+    } else {
+      throw error;
+    }
   } finally {
     await connection.end();
   }

@@ -12,6 +12,29 @@ import * as mysql2 from "mysql2/promise";
 import * as dotenv from "dotenv";
 import SqlParser, { AST } from 'node-sql-parser';
 
+// @INFO: Load environment variables from .env file
+dotenv.config()
+
+// Logging configuration
+const ENABLE_LOGGING = process.env.ENABLE_LOGGING === '1'
+
+type LogType = 'info' | 'error'
+
+function log(type: LogType = 'info', ...args: any[]): void {
+  if (!ENABLE_LOGGING) return
+
+  switch (type) {
+    case 'info':
+      console.info(...args)
+      break
+    case 'error':
+      console.error(...args)
+      break
+    default:
+      console.log(...args)
+  }
+}
+
 // Define interfaces for schema-specific permissions
 interface SchemaPermissions {
   [schema: string]: boolean
@@ -25,9 +48,6 @@ export interface ColumnRow {
   column_name: string
   data_type: string
 }
-
-// @INFO: Load environment variables from .env file
-dotenv.config()
 
 // @INFO: Update the environment setup to ensure database is correctly set
 if (process.env.NODE_ENV === 'test' && !process.env.MYSQL_DB) {
@@ -51,7 +71,7 @@ const isMultiDbMode = !process.env.MYSQL_DB || process.env.MYSQL_DB.trim() === '
 
 // Force read-only mode in multi-DB mode unless explicitly configured otherwise
 if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== 'true') {
-  console.error('Multi-DB mode detected - enabling read-only mode for safety')
+  log('error', 'Multi-DB mode detected - enabling read-only mode for safety')
 }
 
 // @INFO: Check if running in test mode
@@ -63,7 +83,7 @@ function safeExit(code: number): void {
   if (!isTestEnvironment) {
     process.exit(code)
   } else {
-    console.error(`[Test mode] Would have called process.exit(${code})`)
+    log('error', `[Test mode] Would have called process.exit(${code})`)
   }
 }
 
@@ -227,22 +247,19 @@ const config = {
 }
 
 // @INFO: Add debug logging for configuration
-console.error(
-  'MySQL Configuration:',
-  JSON.stringify(
-    {
-      host: config.mysql.host,
-      port: config.mysql.port,
-      user: config.mysql.user,
-      password: config.mysql.password ? '******' : 'not set',
-      database: config.mysql.database || 'MULTI_DB_MODE',
-      ssl: process.env.MYSQL_SSL === 'true' ? 'enabled' : 'disabled',
-      multiDbMode: isMultiDbMode ? 'enabled' : 'disabled',
-    },
-    null,
-    2,
-  ),
-)
+log('info', 'MySQL Configuration:', JSON.stringify(
+  {
+    host: config.mysql.host,
+    port: config.mysql.port,
+    user: config.mysql.user,
+    password: config.mysql.password ? '******' : 'not set',
+    database: config.mysql.database || 'MULTI_DB_MODE',
+    ssl: process.env.MYSQL_SSL === 'true' ? 'enabled' : 'disabled',
+    multiDbMode: isMultiDbMode ? 'enabled' : 'disabled',
+  },
+  null,
+  2,
+))
 
 // @INFO: Lazy load MySQL pool
 let poolPromise: Promise<mysql2.Pool>
@@ -251,10 +268,10 @@ const getPool = (): Promise<mysql2.Pool> => {
     poolPromise = new Promise<mysql2.Pool>((resolve, reject) => {
       try {
         const pool = mysql2.createPool(config.mysql)
-        console.error('MySQL pool created successfully')
+        log('info', 'MySQL pool created successfully')
         resolve(pool)
       } catch (error) {
-        console.error('Error creating MySQL pool:', error)
+        log('error', 'Error creating MySQL pool:', error)
         reject(error)
       }
     })
@@ -293,7 +310,7 @@ const getServer = (): Promise<Server> => {
         ListResourcesRequestSchema,
         async () => {
           try {
-            console.error('Handling ListResourcesRequest')
+            log('error', 'Handling ListResourcesRequest')
             
             // If we're in multi-DB mode, list all databases first
             if (isMultiDbMode) {
@@ -345,7 +362,7 @@ const getServer = (): Promise<Server> => {
               }
             }
           } catch (error) {
-            console.error('Error in ListResourcesRequest handler:', error)
+            log('error', 'Error in ListResourcesRequest handler:', error)
             throw error
           }
         },
@@ -355,7 +372,7 @@ const getServer = (): Promise<Server> => {
         ReadResourceRequestSchema,
         async (request) => {
           try {
-            console.error('Handling ReadResourceRequest')
+            log('error', 'Handling ReadResourceRequest')
             const resourceUrl = new URL(request.params.uri)
             const pathComponents = resourceUrl.pathname.split('/')
             const schema = pathComponents.pop()
@@ -395,14 +412,14 @@ const getServer = (): Promise<Server> => {
               ],
             }
           } catch (error) {
-            console.error('Error in ReadResourceRequest handler:', error)
+            log('error', 'Error in ReadResourceRequest handler:', error)
             throw error
           }
         },
       )
 
       server.setRequestHandler(ListToolsRequestSchema, async () => {
-        console.error('Handling ListToolsRequest')
+        log('error', 'Handling ListToolsRequest')
         
         const toolsResponse = {
           tools: [
@@ -423,7 +440,7 @@ const getServer = (): Promise<Server> => {
           ],
         }
         
-        console.error(
+        log('error',
           'ListToolsRequest response:',
           JSON.stringify(toolsResponse, null, 2),
         )
@@ -434,7 +451,7 @@ const getServer = (): Promise<Server> => {
         CallToolRequestSchema,
         async (request) => {
           try {
-            console.error('Handling CallToolRequest:', request.params.name)
+            log('error', 'Handling CallToolRequest:', request.params.name)
             if (request.params.name !== 'mysql_query') {
               throw new Error(`Unknown tool: ${request.params.name}`)
             }
@@ -442,7 +459,7 @@ const getServer = (): Promise<Server> => {
             const sql = request.params.arguments?.sql as string
             return executeReadOnlyQuery(sql)
           } catch (error) {
-            console.error('Error in CallToolRequest handler:', error)
+            log('error', 'Error in CallToolRequest handler:', error)
             throw error
           }
         },
@@ -459,18 +476,18 @@ const parser = new Parser();
 
 async function getQueryTypes(query: string): Promise<string[]> {
   try {
-    console.error("Parsing SQL query: ", query);
-    // Parse into AST or array of ASTs
+    log('error', "Parsing SQL query: ", query);
+    // Parse into AST or array of ASTs - only specify the database type
     const astOrArray: AST | AST[] = parser.astify(query, { database: 'mysql' });
     const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
 
-    console.error("Parsed SQL AST: ", statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown'));
+    log('error', "Parsed SQL AST: ", statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown'));
     
     // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
     return statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown');
   } catch (err: any) {
-    console.error("sqlParser error, query: ", query);
-    console.error('Error parsing SQL query:', err);
+    log('error', "sqlParser error, query: ", query);
+    log('error', 'Error parsing SQL query:', err);
     throw new Error(`Parsing failed: ${err.message}`);
   }
 }
@@ -483,16 +500,15 @@ async function executeQuery<T>(
   try {
     const pool = await getPool()
     connection = await pool.getConnection()
-    console.error('Connection acquired successfully')
     const result = await connection.query(sql, params)
     return (Array.isArray(result) ? result[0] : result) as T
   } catch (error) {
-    console.error('Error executing query:', error)
+    log('error', 'Error executing query:', error)
     throw error
   } finally {
     if (connection) {
       connection.release()
-      console.error('Connection released')
+      log('error', 'Connection released')
     }
   }
 }
@@ -514,7 +530,8 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     
     // Check schema-specific permissions
     if (isInsertOperation && !isInsertAllowedForSchema(schema)) {
-      console.error(
+      log(
+        'error',
         `INSERT operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_INSERT_PERMISSIONS.`,
       )
       return {
@@ -529,7 +546,8 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     }
     
     if (isUpdateOperation && !isUpdateAllowedForSchema(schema)) {
-      console.error(
+      log(
+        'error',
         `UPDATE operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_UPDATE_PERMISSIONS.`,
       )
       return {
@@ -544,7 +562,8 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     }
     
     if (isDeleteOperation && !isDeleteAllowedForSchema(schema)) {
-      console.error(
+      log(
+        'error',
         `DELETE operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_DELETE_PERMISSIONS.`,
       )
       return {
@@ -559,7 +578,8 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     }
     
     if (isDDLOperation && !isDDLAllowedForSchema(schema)) {
-      console.error(
+      log(
+        'error',
         `DDL operations are not allowed for schema '${schema || 'default'}'. Configure SCHEMA_DDL_PERMISSIONS.`,
       )
       return {
@@ -586,7 +606,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     // For read-only operations, continue with the original logic
     const pool = await getPool()
     connection = await pool.getConnection()
-    console.error('Read-only connection acquired')
+    log('error', 'Read-only connection acquired')
 
     // Set read-only mode
     await connection.query('SET SESSION TRANSACTION READ ONLY')
@@ -616,13 +636,13 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       } as T
     } catch (error) {
       // Rollback transaction on query error
-      console.error('Error executing read-only query:', error)
+      log('error', 'Error executing read-only query:', error)
       await connection.rollback()
       throw error
     }
   } catch (error) {
     // Ensure we rollback and reset transaction mode on any error
-    console.error('Error in read-only query transaction:', error)
+    log('error', 'Error in read-only query transaction:', error)
     try {
       if (connection) {
         await connection.rollback()
@@ -630,13 +650,13 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       }
     } catch (cleanupError) {
       // Ignore errors during cleanup
-      console.error('Error during cleanup:', cleanupError)
+      log('error', 'Error during cleanup:', cleanupError)
     }
     throw error
   } finally {
     if (connection) {
       connection.release()
-      console.error('Read-only connection released')
+      log('error', 'Read-only connection released')
     }
   }
 }
@@ -647,7 +667,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
   try {
     const pool = await getPool()
     connection = await pool.getConnection()
-    console.error('Write connection acquired')
+    log('error', 'Write connection acquired')
 
     // Extract schema for permissions (if needed)
     const schema = extractSchemaFromQuery(sql)
@@ -702,7 +722,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
       } as T
     } catch (error: unknown) {
       // @INFO: Rollback on error
-      console.error('Error executing write query:', error)
+      log('error', 'Error executing write query:', error)
       await connection.rollback()
       
       return {
@@ -716,7 +736,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
       } as T
     }
   } catch (error: unknown) {
-    console.error('Error in write operation transaction:', error)
+    log('error', 'Error in write operation transaction:', error)
     return {
       content: [
         {
@@ -729,7 +749,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
   } finally {
     if (connection) {
       connection.release()
-      console.error('Write connection released')
+      log('error', 'Write connection released')
     }
   }
 }
@@ -740,35 +760,35 @@ export { executeQuery, executeReadOnlyQuery, executeWriteQuery, getServer }
 // @INFO: Server startup and shutdown
 async function runServer(): Promise<void> {
   try {
-    console.error('Attempting to test database connection...')
+    log('error', 'Attempting to test database connection...')
     // @INFO: Test the connection before fully starting the server
     const pool = await getPool()
     const connection = await pool.getConnection()
-    console.error('Database connection test successful')
+    log('error', 'Database connection test successful')
     connection.release()
     
     const server = await getServer()
     const transport = new StdioServerTransport()
-    console.error('Connecting server to transport...')
+    log('error', 'Connecting server to transport...')
     await server.connect(transport)
-    console.error('Server connected to transport successfully')
+    log('error', 'Server connected to transport successfully')
   } catch (error) {
-    console.error('Fatal error during server startup:', error)
+    log('error', 'Fatal error during server startup:', error)
     safeExit(1)
   }
 }
 
 const shutdown = async (signal: string): Promise<void> => {
-  console.error(`Received ${signal}. Shutting down...`)
+  log('error', `Received ${signal}. Shutting down...`)
   try {
     // @INFO: Only attempt to close the pool if it was created
     if (poolPromise) {
       const pool = await poolPromise
       await pool.end()
-      console.error('MySQL pool closed successfully')
+      log('error', 'MySQL pool closed successfully')
     }
   } catch (err) {
-    console.error('Error closing pool:', err)
+    log('error', 'Error closing pool:', err)
     throw err
   }
 }
@@ -778,7 +798,7 @@ process.on('SIGINT', async () => {
     await shutdown('SIGINT')
     process.exit(0)
   } catch (err) {
-    console.error('Error during SIGINT shutdown:', err)
+    log('error', 'Error during SIGINT shutdown:', err)
     safeExit(1)
   }
 })
@@ -788,23 +808,23 @@ process.on('SIGTERM', async () => {
     await shutdown('SIGTERM')
     process.exit(0)
   } catch (err) {
-    console.error('Error during SIGTERM shutdown:', err)
+    log('error', 'Error during SIGTERM shutdown:', err)
     safeExit(1)
   }
 })
 
 // @INFO: Add unhandled error listeners
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error)
+  log('error', 'Uncaught exception:', error)
   safeExit(1)
 })
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason)
+  log('error', 'Unhandled rejection at:', promise, 'reason:', reason)
   safeExit(1)
 })
 
 runServer().catch((error: unknown) => {
-  console.error('Server error:', error)
+  log('error', 'Server error:', error)
   safeExit(1)
 })

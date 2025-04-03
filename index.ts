@@ -459,12 +459,12 @@ const parser = new Parser();
 
 async function getQueryTypes(query: string): Promise<string[]> {
   try {
-    console.log("Parsing SQL query: ", query);
+    console.error("Parsing SQL query: ", query);
     // Parse into AST or array of ASTs
     const astOrArray: AST | AST[] = parser.astify(query, { database: 'mysql' });
     const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
 
-    console.log("Parsed SQL AST: ", statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown'));
+    console.error("Parsed SQL AST: ", statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown'));
     
     // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
     return statements.map(stmt => stmt.type?.toLowerCase() ?? 'unknown');

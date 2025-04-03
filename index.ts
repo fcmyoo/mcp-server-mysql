@@ -11,31 +11,8 @@ import {
 import * as mysql2 from "mysql2/promise";
 import * as dotenv from "dotenv";
 import SqlParser, { AST } from 'node-sql-parser';
+import { log } from './utils/index.js';
 
-// @INFO: Load environment variables from .env file
-dotenv.config()
-
-// Logging configuration
-const ENABLE_LOGGING = process.env.ENABLE_LOGGING === '1'
-
-type LogType = 'info' | 'error'
-
-function log(type: LogType = 'info', ...args: any[]): void {
-  if (!ENABLE_LOGGING) return
-
-  switch (type) {
-    case 'info':
-      console.info(...args)
-      break
-    case 'error':
-      console.error(...args)
-      break
-    default:
-      console.log(...args)
-  }
-}
-
-// Define interfaces for schema-specific permissions
 interface SchemaPermissions {
   [schema: string]: boolean
 }
@@ -48,6 +25,12 @@ export interface ColumnRow {
   column_name: string
   data_type: string
 }
+
+// @INFO: Load environment variables from .env file
+dotenv.config()
+
+log('info', 'Starting MCP server...')
+
 
 // @INFO: Update the environment setup to ensure database is correctly set
 if (process.env.NODE_ENV === 'test' && !process.env.MYSQL_DB) {

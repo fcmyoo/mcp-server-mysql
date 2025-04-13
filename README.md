@@ -71,7 +71,7 @@ For Cursor IDE, you can install this MCP server with the following command in yo
 
 
 ```
-npx mcprunner MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
+npx mcprunner -- MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
 ```
 Don't forget to replace the `env` values on that command. If you have the latest version (for v0.47 and above) of Cursor, just copy and paste the config below:
 
@@ -83,6 +83,7 @@ Don't forget to replace the `env` values on that command. If you have the latest
       "command": "npx",
       "args": [
         "mcprunner",
+        "--",
         "MYSQL_HOST=127.0.0.1",
         "MYSQL_PORT=3306",
         "MYSQL_USER=root",

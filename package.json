@@ -34,6 +34,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",
     "dotenv": "^16.4.7",
+    "mcp-evals": "^1.0.18",
     "mysql2": "^3.14.0",
     "node-sql-parser": "^5.3.8"
   },

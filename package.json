@@ -48,12 +48,8 @@
     "shx": "^0.3.4",
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
-<<<<<<< HEAD
     "tsx": "^4.19.4",
-    "typescript": "^5.8.2",
-=======
     "typescript": "^5.8.3",
->>>>>>> 3945dba (updated deps)
     "vitest": "^1.6.1"
   },
   "publishConfig": {

@@ -103,16 +103,10 @@ function extractSchemaFromQuery(sql: string): string | null {
 
 async function getQueryTypes(query: string): Promise<string[]> {
   try {
-    log("error", "Parsing SQL query: ", query);
+    log("info", "Parsing SQL query: ", query);
     // Parse into AST or array of ASTs - only specify the database type
     const astOrArray: AST | AST[] = parser.astify(query, { database: "mysql" });
     const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
-
-    log(
-      "error",
-      "Parsed SQL AST: ",
-      statements.map((stmt) => stmt.type?.toLowerCase() ?? "unknown"),
-    );
 
     // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
     return statements.map((stmt) => stmt.type?.toLowerCase() ?? "unknown");
@@ -147,7 +141,7 @@ async function executeQuery<T>(sql: string, params: string[] = []): Promise<T> {
   try {
     const pool = await getPool();
     connection = await pool.getConnection();
-    const result = await connection.query(sql.toLocaleLowerCase(), params);
+    const result = await connection.query(sql, params);
     return (Array.isArray(result) ? result[0] : result) as T;
   } catch (error) {
     log("error", "Error executing query:", error);
@@ -176,7 +170,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
 
     try {
       // @INFO: Execute the write query
-      const result = await connection.query(sql.toLocaleLowerCase());
+      const result = await connection.query(sql);
       const response = Array.isArray(result) ? result[0] : result;
 
       // @INFO: Commit the transaction
@@ -369,7 +363,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
 
     try {
       // Execute query - in multi-DB mode, we may need to handle USE statements specially
-      const result = await connection.query(sql.toLocaleLowerCase());
+      const result = await connection.query(sql);
       const rows = Array.isArray(result) ? result[0] : result;
 
       // Rollback transaction (since it's read-only)

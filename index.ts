@@ -33,7 +33,8 @@ import {
 log("info", `Starting MySQL MCP server v${process.env.npm_package_version}...`);
 
 // Update tool description to include multi-DB mode and schema-specific permissions
-let toolDescription = "Run SQL queries against MySQL database";
+const toolVersion = `MySQL MCP Server [v${process.env.npm_package_version}]`;
+let toolDescription = `Run SQL queries against MySQL database`;
 
 if (isMultiDbMode) {
   toolDescription += " (Multi-DB mode enabled)";

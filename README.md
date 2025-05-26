@@ -330,7 +330,7 @@ For more control over the MCP server's behavior, you can use these advanced conf
         "MYSQL_SSL": "true",
         
         // Monitoring settings
-        "MYSQL_ENABLE_LOGGING": "true",
+        "ENABLE_LOGGING": "true",
         "MYSQL_LOG_LEVEL": "info",
         "MYSQL_METRICS_ENABLED": "true",
         
@@ -581,6 +581,9 @@ Thanks to @lizhuangs
 
 Contributions are welcome! Please feel free to submit a Pull Request to 
 https://github.com/benborla/mcp-server-mysql
+
+## Many Thanks to the following Contributors:
+![contributors badge](https://readme-contribs.as93.net/contributors/benborla/mcp-server-mysql)
 
 ### Development Setup
 

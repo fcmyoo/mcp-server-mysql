@@ -2,9 +2,8 @@ import { SchemaPermissions } from "../types/index.js";
 type LogType = "info" | "error";
 
 // @INFO: Enable logging if ENABLE_LOGGING is true
-const ENABLE_LOGGING = ["true", "1"].includes(
-  process.env.ENABLE_LOGGING || "false",
-);
+const ENABLE_LOGGING =
+  process.env.ENABLE_LOGGING === "true" || process.env.ENABLE_LOGGING === "1";
 
 export function log(type: LogType = "info", ...args: any[]): void {
   if (!ENABLE_LOGGING) return;

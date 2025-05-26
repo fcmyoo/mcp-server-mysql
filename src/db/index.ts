@@ -1,22 +1,16 @@
+import { isMultiDbMode } from "./../config/index.js";
+
 import {
-  ALLOW_DELETE_OPERATION,
-  ALLOW_DDL_OPERATION,
-  ALLOW_INSERT_OPERATION,
-  ALLOW_UPDATE_OPERATION,
-  SCHEMA_DELETE_PERMISSIONS,
-  SCHEMA_DDL_PERMISSIONS,
-  SCHEMA_INSERT_PERMISSIONS,
-  SCHEMA_UPDATE_PERMISSIONS,
-  isMultiDbMode,
-} from "./../config/index.js";
+  isDDLAllowedForSchema,
+  isInsertAllowedForSchema,
+  isUpdateAllowedForSchema,
+  isDeleteAllowedForSchema,
+} from "./permissions.js";
+import { extractSchemaFromQuery, getQueryTypes } from "./utils.js";
 
 import * as mysql2 from "mysql2/promise";
-import SqlParser, { AST } from "node-sql-parser";
 import { log } from "./../utils/index.js";
 import { mcpConfig as config } from "./../config/index.js";
-
-const { Parser } = SqlParser;
-const parser = new Parser();
 
 // Force read-only mode in multi-DB mode unless explicitly configured otherwise
 if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== "true") {
@@ -27,93 +21,11 @@ if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== "true") {
 const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.VITEST;
 
 // @INFO: Safe way to exit process (not during tests)
-// @INFO: Move this back to *main* index.ts
 function safeExit(code: number): void {
   if (!isTestEnvironment) {
     process.exit(code);
   } else {
     log("error", `[Test mode] Would have called process.exit(${code})`);
-  }
-}
-
-// Schema permission checking functions
-function isInsertAllowedForSchema(schema: string | null): boolean {
-  if (!schema) {
-    return ALLOW_INSERT_OPERATION;
-  }
-  return schema in SCHEMA_INSERT_PERMISSIONS
-    ? SCHEMA_INSERT_PERMISSIONS[schema]
-    : ALLOW_INSERT_OPERATION;
-}
-
-function isUpdateAllowedForSchema(schema: string | null): boolean {
-  if (!schema) {
-    return ALLOW_UPDATE_OPERATION;
-  }
-  return schema in SCHEMA_UPDATE_PERMISSIONS
-    ? SCHEMA_UPDATE_PERMISSIONS[schema]
-    : ALLOW_UPDATE_OPERATION;
-}
-
-function isDeleteAllowedForSchema(schema: string | null): boolean {
-  if (!schema) {
-    return ALLOW_DELETE_OPERATION;
-  }
-  return schema in SCHEMA_DELETE_PERMISSIONS
-    ? SCHEMA_DELETE_PERMISSIONS[schema]
-    : ALLOW_DELETE_OPERATION;
-}
-
-function isDDLAllowedForSchema(schema: string | null): boolean {
-  if (!schema) {
-    return ALLOW_DDL_OPERATION;
-  }
-  return schema in SCHEMA_DDL_PERMISSIONS
-    ? SCHEMA_DDL_PERMISSIONS[schema]
-    : ALLOW_DDL_OPERATION;
-}
-
-// Extract schema from SQL query
-function extractSchemaFromQuery(sql: string): string | null {
-  // Default schema from environment
-  const defaultSchema = process.env.MYSQL_DB || null;
-
-  // If we have a default schema and not in multi-DB mode, return it
-  if (defaultSchema && !isMultiDbMode) {
-    return defaultSchema;
-  }
-
-  // Try to extract schema from query
-
-  // Case 1: USE database statement
-  const useMatch = sql.match(/USE\s+`?([a-zA-Z0-9_]+)`?/i);
-  if (useMatch && useMatch[1]) {
-    return useMatch[1];
-  }
-
-  // Case 2: database.table notation
-  const dbTableMatch = sql.match(/`?([a-zA-Z0-9_]+)`?\.`?[a-zA-Z0-9_]+`?/i);
-  if (dbTableMatch && dbTableMatch[1]) {
-    return dbTableMatch[1];
-  }
-
-  // Return default if we couldn't find a schema in the query
-  return defaultSchema;
-}
-
-async function getQueryTypes(query: string): Promise<string[]> {
-  try {
-    log("info", "Parsing SQL query: ", query);
-    // Parse into AST or array of ASTs - only specify the database type
-    const astOrArray: AST | AST[] = parser.astify(query, { database: "mysql" });
-    const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
-
-    // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
-    return statements.map((stmt) => stmt.type?.toLowerCase() ?? "unknown");
-  } catch (err: any) {
-    log("error", "sqlParser error, query: ", query);
-    log("error", "Error parsing SQL query:", err);
-    throw new Error(`Parsing failed: ${err.message}`);
   }
 }
 
@@ -411,12 +323,6 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
 export {
   isTestEnvironment,
   safeExit,
-  isDeleteAllowedForSchema,
-  isUpdateAllowedForSchema,
-  isInsertAllowedForSchema,
-  isDDLAllowedForSchema,
-  extractSchemaFromQuery,
-  getQueryTypes,
   executeQuery,
   getPool,
   executeWriteQuery,

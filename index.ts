@@ -21,6 +21,7 @@ import {
   SCHEMA_UPDATE_PERMISSIONS,
   isMultiDbMode,
   mcpConfig as config,
+  MCP_VERSION as version,
 } from "./src/config/index.js";
 import {
   safeExit,
@@ -30,7 +31,7 @@ import {
   poolPromise,
 } from "./src/db/index.js";
 
-log("info", `Starting MySQL MCP server v${process.env.npm_package_version}...`);
+log("info", `Starting MySQL MCP server v${version}...`);
 
 // Update tool description to include multi-DB mode and schema-specific permissions
 const toolVersion = `MySQL MCP Server [v${process.env.npm_package_version}]`;

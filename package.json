@@ -30,7 +30,8 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "stdio": "node dist/index.js --stdio"
+    "stdio": "node dist/index.js --stdio",
+    "exec": " pnpm build && npx node --env-file=.env dist/index.js"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",

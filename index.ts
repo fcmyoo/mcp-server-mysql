@@ -9,56 +9,22 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import * as mysql2 from "mysql2/promise";
-import * as dotenv from "dotenv";
 import SqlParser, { AST } from "node-sql-parser";
-import { log } from "./utils/index.js";
-
-interface SchemaPermissions {
-  [schema: string]: boolean;
-}
-
-export interface TableRow {
-  table_name: string;
-}
-
-export interface ColumnRow {
-  column_name: string;
-  data_type: string;
-}
-
-// @INFO: Load environment variables from .env file
-dotenv.config();
+import { log } from "./src/utils/index.js";
+import type { TableRow, ColumnRow } from "./src/types/index.js";
+import {
+  ALLOW_DELETE_OPERATION,
+  ALLOW_DDL_OPERATION,
+  ALLOW_INSERT_OPERATION,
+  ALLOW_UPDATE_OPERATION,
+  SCHEMA_DELETE_PERMISSIONS,
+  SCHEMA_DDL_PERMISSIONS,
+  SCHEMA_INSERT_PERMISSIONS,
+  SCHEMA_UPDATE_PERMISSIONS,
+  isMultiDbMode,
+} from "./src/config/index.js";
 
 log("info", "Starting MCP server...");
-
-// @INFO: Update the environment setup to ensure database is correctly set
-if (process.env.NODE_ENV === "test" && !process.env.MYSQL_DB) {
-  process.env.MYSQL_DB = "mcp_test_db"; // @INFO: Ensure we have a database name for tests
-}
-
-// Write operation flags (global defaults)
-const ALLOW_INSERT_OPERATION = process.env.ALLOW_INSERT_OPERATION === "true";
-const ALLOW_UPDATE_OPERATION = process.env.ALLOW_UPDATE_OPERATION === "true";
-const ALLOW_DELETE_OPERATION = process.env.ALLOW_DELETE_OPERATION === "true";
-const ALLOW_DDL_OPERATION = process.env.ALLOW_DDL_OPERATION === "true";
-
-// Schema-specific permissions
-const SCHEMA_INSERT_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
-  process.env.SCHEMA_INSERT_PERMISSIONS,
-);
-const SCHEMA_UPDATE_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
-  process.env.SCHEMA_UPDATE_PERMISSIONS,
-);
-const SCHEMA_DELETE_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
-  process.env.SCHEMA_DELETE_PERMISSIONS,
-);
-const SCHEMA_DDL_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
-  process.env.SCHEMA_DDL_PERMISSIONS,
-);
-
-// Check if we're in multi-DB mode (no specific DB set)
-const isMultiDbMode =
-  !process.env.MYSQL_DB || process.env.MYSQL_DB.trim() === "";
 
 // Force read-only mode in multi-DB mode unless explicitly configured otherwise
 if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== "true") {
@@ -75,27 +41,6 @@ function safeExit(code: number): void {
   } else {
     log("error", `[Test mode] Would have called process.exit(${code})`);
   }
-}
-
-// Function to parse schema-specific permissions from environment variables
-function parseSchemaPermissions(permissionsString?: string): SchemaPermissions {
-  const permissions: SchemaPermissions = {};
-
-  if (!permissionsString) {
-    return permissions;
-  }
-
-  // Format: "schema1:true,schema2:false"
-  const permissionPairs = permissionsString.split(",");
-
-  for (const pair of permissionPairs) {
-    const [schema, value] = pair.split(":");
-    if (schema && value) {
-      permissions[schema.trim()] = value.trim() === "true";
-    }
-  }
-
-  return permissions;
 }
 
 // Schema permission checking functions
@@ -222,7 +167,8 @@ const config = {
     host: process.env.MYSQL_HOST || "127.0.0.1",
     port: Number(process.env.MYSQL_PORT || "3306"),
     user: process.env.MYSQL_USER || "root",
-    password: process.env.MYSQL_PASS === undefined ? "" : process.env.MYSQL_PASS,
+    password:
+      process.env.MYSQL_PASS === undefined ? "" : process.env.MYSQL_PASS,
     database: process.env.MYSQL_DB || undefined, // Allow undefined database for multi-DB mode
     connectionLimit: 10,
     authPlugins: {

@@ -582,6 +582,9 @@ Thanks to @lizhuangs
 Contributions are welcome! Please feel free to submit a Pull Request to 
 https://github.com/benborla/mcp-server-mysql
 
+## Many Thanks to the following Contributors:
+![contributors badge](https://readme-contribs.as93.net/contributors/benborla/mcp-server-mysql)
+
 ### Development Setup
 
 1. Clone the repository

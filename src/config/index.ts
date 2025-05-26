@@ -33,3 +33,35 @@ export const SCHEMA_DDL_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
 // Check if we're in multi-DB mode (no specific DB set)
 export const isMultiDbMode =
   !process.env.MYSQL_DB || process.env.MYSQL_DB.trim() === "";
+
+export const mcpConfig = {
+  server: {
+    name: "@benborla29/mcp-server-mysql",
+    version: process.env.npm_package_version || "2.0.0",
+    connectionTypes: ["stdio"],
+  },
+  mysql: {
+    host: process.env.MYSQL_HOST || "127.0.0.1",
+    port: Number(process.env.MYSQL_PORT || "3306"),
+    user: process.env.MYSQL_USER || "root",
+    password:
+      process.env.MYSQL_PASS === undefined ? "" : process.env.MYSQL_PASS,
+    database: process.env.MYSQL_DB || undefined, // Allow undefined database for multi-DB mode
+    connectionLimit: 10,
+    authPlugins: {
+      mysql_clear_password: () => () =>
+        Buffer.from(process.env.MYSQL_PASS || "root"),
+    },
+    ...(process.env.MYSQL_SSL === "true"
+      ? {
+          ssl: {
+            rejectUnauthorized:
+              process.env.MYSQL_SSL_REJECT_UNAUTHORIZED === "true",
+          },
+        }
+      : {}),
+  },
+  paths: {
+    schema: "schema",
+  },
+};

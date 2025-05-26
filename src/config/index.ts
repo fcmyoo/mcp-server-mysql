@@ -2,6 +2,8 @@ import * as dotenv from "dotenv";
 import { SchemaPermissions } from "../types/index.js";
 import { parseSchemaPermissions } from "../utils/index.js";
 
+export const MCP_VERSION = "2.0.1";
+
 // @INFO: Load environment variables from .env file
 dotenv.config();
 
@@ -37,7 +39,7 @@ export const isMultiDbMode =
 export const mcpConfig = {
   server: {
     name: "@benborla29/mcp-server-mysql",
-    version: process.env.npm_package_version || "2.0.0",
+    version: MCP_VERSION,
     connectionTypes: ["stdio"],
   },
   mysql: {

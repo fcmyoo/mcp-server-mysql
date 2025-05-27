@@ -88,8 +88,16 @@ log(
   "MySQL Configuration:",
   JSON.stringify(
     {
-      host: config.mysql.host,
-      port: config.mysql.port,
+      ...(process.env.MYSQL_SOCKET_PATH
+        ? {
+            socketPath: process.env.MYSQL_SOCKET_PATH,
+            connectionType: "Unix Socket",
+          }
+        : {
+            host: process.env.MYSQL_HOST || "127.0.0.1",
+            port: process.env.MYSQL_PORT || "3306",
+            connectionType: "TCP/IP",
+          }),
       user: config.mysql.user,
       password: config.mysql.password ? "******" : "not set",
       database: config.mysql.database || "MULTI_DB_MODE",
@@ -130,7 +138,10 @@ const getServer = (): Promise<Server> => {
       // @INFO: Register request handlers
       server.setRequestHandler(ListResourcesRequestSchema, async () => {
         try {
-          log("error", "Handling ListResourcesRequest");
+          log("info", "Handling ListResourcesRequest");
+          const connectionInfo = process.env.MYSQL_SOCKET_PATH
+            ? `socket:${process.env.MYSQL_SOCKET_PATH}`
+            : `${process.env.MYSQL_HOST || "127.0.0.1"}:${process.env.MYSQL_PORT || "3306"}`;
 
           // If we're in multi-DB mode, list all databases first
           if (isMultiDbMode) {
@@ -162,7 +173,7 @@ const getServer = (): Promise<Server> => {
                 ...tables.map((row: TableRow) => ({
                   uri: new URL(
                     `${db.Database}/${row.table_name}/${config.paths.schema}`,
-                    `${config.mysql.host}:${config.mysql.port}`,
+                    connectionInfo,
                   ).href,
                   mimeType: "application/json",
                   name: `"${db.Database}.${row.table_name}" database schema`,
@@ -183,7 +194,7 @@ const getServer = (): Promise<Server> => {
               resources: results.map((row: TableRow) => ({
                 uri: new URL(
                   `${row.table_name}/${config.paths.schema}`,
-                  `${config.mysql.host}:${config.mysql.port}`,
+                  connectionInfo,
                 ).href,
                 mimeType: "application/json",
                 name: `"${row.table_name}" database schema`,

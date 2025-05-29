@@ -1,13 +1,11 @@
 
 # MCP Server for MySQL based on NodeJS
 [![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
-<a href="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql/badge" />
-</a><a href="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql/badge" />
-</a>
 
 ![Demo](assets/demo.gif)
+<a href="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql/badge" />
+</a>
 
 A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
 

@@ -3,16 +3,16 @@
 [![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 
 ![Demo](assets/demo.gif)
+<a href="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql/badge" />
+</a>
 
 A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
 
 ## Table of Contents
 - [Requirements](#requirements)
 - [Installation](#installation)
-  - [Claude Desktop](#claude-desktop)
-  - [Cursor](#cursor)
   - [Smithery](#using-smithery)
-  - [MCP Get](#using-mcp-get)
   - [Clone to Local Repository](#running-from-local-repository)
 - [Components](#components)
 - [Configuration](#configuration)
@@ -33,112 +33,15 @@ A Model Context Protocol server that provides access to MySQL databases. This se
 
 ## Installation
 
-There are several ways to install and configure the MCP server:
-
-### Claude Desktop
-
-To manually configure the MCP server for Claude Desktop App, add the following to your `claude_desktop_config.json` file (typically located in your user directory):
-
-```json
-{
-  "mcpServers": {
-    "mcp_server_mysql": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@benborla29/mcp-server-mysql"
-      ],
-      "env": {
-        "MYSQL_HOST": "127.0.0.1",
-        "MYSQL_PORT": "3306",
-        "MYSQL_USER": "root",
-        "MYSQL_PASS": "your_password",
-        "MYSQL_DB": "your_database",
-        "ALLOW_INSERT_OPERATION": "false",
-        "ALLOW_UPDATE_OPERATION": "false",
-        "ALLOW_DELETE_OPERATION": "false",
-           "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin", // <--- Important to add the following, run in your terminal `echo "$(which node)/../"` to get the path
-           "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules" // <--- Important to add the following, run in your terminal `echo "$(which node)/../../lib/node_modules"`
-      }
-    }
-  }
-}
-```
+There are several ways to install and configure the MCP server but the most common would be checking this website https://smithery.ai/server/@benborla29/mcp-server-mysql
 
 ### Cursor
 
 For Cursor IDE, you can install this MCP server with the following command in your project:
 
+1. Visit https://smithery.ai/server/@benborla29/mcp-server-mysql
+2. Follow the instruction for Cursor
 
-```
-npx mcprunner -- MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASS=root MYSQL_DB=demostore ALLOW_INSERT_OPERATION=true ALLOW_UPDATE_OPERATION=true ALLOW_DELETE_OPERATION=false -- npx -y @benborla29/mcp-server-mysql
-```
-Don't forget to replace the `env` values on that command. If you have the latest version (for v0.47 and above) of Cursor, just copy and paste the config below:
-
-`mcp.json`
-```json
-{
-  "mcpServers": {
-    "MySQL": {
-      "command": "npx",
-      "args": [
-        "mcprunner",
-        "--",
-        "MYSQL_HOST=127.0.0.1",
-        "MYSQL_PORT=3306",
-        "MYSQL_USER=root",
-        "MYSQL_PASS=root",
-        "MYSQL_DB=demostore",
-        "ALLOW_INSERT_OPERATION=true",
-        "ALLOW_UPDATE_OPERATION=true",
-        "ALLOW_DELETE_OPERATION=false",
-        "--",
-        "npx",
-        "-y",
-        "@benborla29/mcp-server-mysql"
-      ]
-    }
-  }
-}
-```
-
-### Using Smithery
-
-The easiest way to install and configure this MCP server is through [Smithery](https://smithery.ai/server/@benborla29/mcp-server-mysql):
-
-```bash
-npx -y @smithery/cli@latest install @benborla29/mcp-server-mysql --client claude
-```
-
-
-During configuration, you'll be prompted to enter your MySQL connection details. Smithery will automatically:
-- Set up the correct environment variables
-- Configure your LLM application to use the MCP server
-- Test the connection to your MySQL database
-- Provide helpful troubleshooting if needed
-- Configure write operation settings (INSERT, UPDATE, DELETE permissions)
-
-The installation will ask for the following connection details:
-- MySQL Host (default: 127.0.0.1)
-- MySQL Port (default: 3306)
-- MySQL Username
-- MySQL Password
-- MySQL Database name
-- SSL Configuration (if needed)
-- Write operations permissions:
-  - Allow INSERT operations (default: false)
-  - Allow UPDATE operations (default: false)
-  - Allow DELETE operations (default: false)
-
-For security reasons, write operations are disabled by default. Enable them only if you need Claude to modify your database data.
-
-### Using MCP Get
-
-You can also install this package using [MCP Get](https://mcp-get.com/packages/%40benborla29%2Fmcp-server-mysql):
-
-```bash
-npx @michaellatman/mcp-get@latest install @benborla29/mcp-server-mysql
-```
 
 MCP Get provides a centralized registry of MCP servers and simplifies the installation process.
 
@@ -330,7 +233,7 @@ For more control over the MCP server's behavior, you can use these advanced conf
         "MYSQL_SSL": "true",
         
         // Monitoring settings
-        "MYSQL_ENABLE_LOGGING": "true",
+        "ENABLE_LOGGING": "true",
         "MYSQL_LOG_LEVEL": "info",
         "MYSQL_METRICS_ENABLED": "true",
         
@@ -581,6 +484,11 @@ Thanks to @lizhuangs
 
 Contributions are welcome! Please feel free to submit a Pull Request to 
 https://github.com/benborla/mcp-server-mysql
+
+## Many Thanks to the following Contributors:
+<a href = "https://github.com/benborla/mcp-server-mysql/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=benborla/mcp-server-mysql"/>
+</a>
 
 ### Development Setup
 

@@ -37,5 +37,5 @@ const config: EvalConfig = {
 };
   
 export default config;
-  
+
 export const evals = [mysqlQueryToolEval, mysqlQueryGenerationEval, mysqlQueryColumnsEval];

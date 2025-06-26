@@ -1,6 +1,9 @@
-# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
 startCommand:
-  type: stdio
+  type: "http"
   configSchema:
     # JSON Schema defining the configuration options for the MCP.
     type: object
@@ -48,6 +51,6 @@ startCommand:
         type: boolean
         default: false
         description: If set to true, DELETE operations will be allowed.
-    commandFunction:
-      |-
+    commandFunction: |-
       (config) => ({ "command": "node", "args": ["dist/index.js"], "env": { "MYSQL_SOCKET_PATH": config.mysqlSocketPath, "MYSQL_HOST": config.mysqlHost, "MYSQL_PORT": config.mysqlPort, "MYSQL_USER": config.mysqlUser, "MYSQL_PASS": config.mysqlPass, "MYSQL_DB": config.mysqlDb, "MYSQL_SSL": config.ssl, "MYSQL_SSL_REJECT_UNAUTHORIZED": config.rejectUnauthorizedSSL, "ALLOW_INSERT_OPERATION": config.allowInsertOperation, "ALLOW_UPDATE_OPERATION": config.allowUpdateOperation, "ALLOW_DELETE_OPERATION": config.allowDeleteOperation } })
+

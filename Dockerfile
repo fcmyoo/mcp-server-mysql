@@ -49,7 +49,7 @@ ENV ALLOW_DELETE_OPERATION=false
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
 # Expose any ports if necessary (e.g., 8080)
-# EXPOSE 8080
+EXPOSE 8080
 
 # Run the server
 ENTRYPOINT ["node", "dist/index.js"]

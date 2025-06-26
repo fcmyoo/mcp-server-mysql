@@ -45,6 +45,176 @@ For Cursor IDE, you can install this MCP server with the following command in yo
 
 MCP Get provides a centralized registry of MCP servers and simplifies the installation process.
 
+### Claude Code
+
+#### Option 1: Import from Claude Desktop (Recommended if already configured)
+
+If you already have this MCP server configured in Claude Desktop, you can import it automatically:
+
+```bash
+claude mcp add-from-claude-desktop
+```
+
+This will show an interactive dialog where you can select your `mcp_server_mysql` server to import with all existing configuration.
+
+#### Option 2: Manual Configuration
+
+**Using NPM/PNPM Global Installation:**
+
+First, install the package globally:
+```bash
+# Using npm
+npm install -g @benborla29/mcp-server-mysql
+
+# Using pnpm
+pnpm add -g @benborla29/mcp-server-mysql
+```
+
+Then add the server to Claude Code:
+```bash
+claude mcp add mcp_server_mysql \
+  -e MYSQL_HOST="127.0.0.1" \
+  -e MYSQL_PORT="3306" \
+  -e MYSQL_USER="root" \
+  -e MYSQL_PASS="your_password" \
+  -e MYSQL_DB="your_database" \
+  -e ALLOW_INSERT_OPERATION="false" \
+  -e ALLOW_UPDATE_OPERATION="false" \
+  -e ALLOW_DELETE_OPERATION="false" \
+  -- npx @benborla29/mcp-server-mysql
+```
+
+**Using Local Repository (for development):**
+
+If you're running from a cloned repository:
+```bash
+claude mcp add mcp_server_mysql \
+  -e MYSQL_HOST="127.0.0.1" \
+  -e MYSQL_PORT="3306" \
+  -e MYSQL_USER="root" \
+  -e MYSQL_PASS="your_password" \
+  -e MYSQL_DB="your_database" \
+  -e ALLOW_INSERT_OPERATION="false" \
+  -e ALLOW_UPDATE_OPERATION="false" \
+  -e ALLOW_DELETE_OPERATION="false" \
+  -e PATH="/path/to/node/bin:/usr/bin:/bin" \
+  -e NODE_PATH="/path/to/node/lib/node_modules" \
+  -- /path/to/node /full/path/to/mcp-server-mysql/dist/index.js
+```
+
+Replace:
+- `/path/to/node` with your Node.js binary path (find with `which node`)
+- `/full/path/to/mcp-server-mysql` with the full path to your cloned repository
+- Update MySQL credentials to match your environment
+
+**Using Unix Socket Connection:**
+
+For local MySQL instances using Unix sockets:
+```bash
+claude mcp add mcp_server_mysql \
+  -e MYSQL_SOCKET_PATH="/tmp/mysql.sock" \
+  -e MYSQL_USER="root" \
+  -e MYSQL_PASS="your_password" \
+  -e MYSQL_DB="your_database" \
+  -e ALLOW_INSERT_OPERATION="false" \
+  -e ALLOW_UPDATE_OPERATION="false" \
+  -e ALLOW_DELETE_OPERATION="false" \
+  -- npx @benborla29/mcp-server-mysql
+```
+
+#### Choosing the Right Scope
+
+Consider which scope to use based on your needs:
+
+```bash
+# Local scope (default) - only available in current project
+claude mcp add mcp_server_mysql [options...]
+
+# User scope - available across all your projects
+claude mcp add mcp_server_mysql -s user [options...]
+
+# Project scope - shared with team members via .mcp.json
+claude mcp add mcp_server_mysql -s project [options...]
+```
+
+For database servers with credentials, **local** or **user** scope is recommended to keep credentials private.
+
+#### Verification
+
+After adding the server, verify it's configured correctly:
+
+```bash
+# List all configured servers
+claude mcp list
+
+# Get details for your MySQL server
+claude mcp get mcp_server_mysql
+
+# Check server status within Claude Code
+/mcp
+```
+
+#### Multi-Database Configuration
+
+For multi-database mode, omit the `MYSQL_DB` environment variable:
+
+```bash
+claude mcp add mcp_server_mysql_multi \
+  -e MYSQL_HOST="127.0.0.1" \
+  -e MYSQL_PORT="3306" \
+  -e MYSQL_USER="root" \
+  -e MYSQL_PASS="your_password" \
+  -e MULTI_DB_WRITE_MODE="false" \
+  -- npx @benborla29/mcp-server-mysql
+```
+
+#### Advanced Configuration
+
+For advanced features, add additional environment variables:
+
+```bash
+claude mcp add mcp_server_mysql \
+  -e MYSQL_HOST="127.0.0.1" \
+  -e MYSQL_PORT="3306" \
+  -e MYSQL_USER="root" \
+  -e MYSQL_PASS="your_password" \
+  -e MYSQL_DB="your_database" \
+  -e MYSQL_POOL_SIZE="10" \
+  -e MYSQL_QUERY_TIMEOUT="30000" \
+  -e MYSQL_CACHE_TTL="60000" \
+  -e MYSQL_RATE_LIMIT="100" \
+  -e MYSQL_SSL="true" \
+  -e ALLOW_INSERT_OPERATION="false" \
+  -e ALLOW_UPDATE_OPERATION="false" \
+  -e ALLOW_DELETE_OPERATION="false" \
+  -e MYSQL_ENABLE_LOGGING="true" \
+  -- npx @benborla29/mcp-server-mysql
+```
+
+#### Troubleshooting Claude Code Setup
+
+1. **Server Connection Issues**: Use `/mcp` command in Claude Code to check server status and authenticate if needed.
+
+2. **Path Issues**: If using a local repository, ensure Node.js paths are correctly set:
+   ```bash
+   # Find your Node.js path
+   which node
+   
+   # For PATH environment variable
+   echo "$(which node)/../"
+   
+   # For NODE_PATH environment variable  
+   echo "$(which node)/../../lib/node_modules"
+   ```
+
+3. **Permission Errors**: Ensure your MySQL user has appropriate permissions for the operations you've enabled.
+
+4. **Server Not Starting**: Check Claude Code logs or run the server directly to debug:
+   ```bash
+   # Test the server directly
+   npx @benborla29/mcp-server-mysql
+   ```
+
 ### Using NPM/PNPM
 
 For manual installation:

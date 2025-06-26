@@ -6,6 +6,7 @@
   "author": "Ben Borla (https://github.com/benborla)",
   "type": "module",
   "main": "dist/index.js",
+  "module": "index.ts",
   "preferGlobal": true,
   "bin": {
     "mcp-server-mysql": "dist/index.js"

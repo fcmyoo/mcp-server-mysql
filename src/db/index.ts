@@ -1,3 +1,4 @@
+import { performance } from "perf_hooks";
 import { isMultiDbMode } from "./../config/index.js";
 
 import {
@@ -82,7 +83,10 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
 
     try {
       // @INFO: Execute the write query
+      const startTime = performance.now();
       const result = await connection.query(sql);
+      const endTime = performance.now();
+      const duration = endTime - startTime;
       const response = Array.isArray(result) ? result[0] : result;
 
       // @INFO: Commit the transaction
@@ -127,6 +131,10 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
           {
             type: "text",
             text: responseText,
+          },
+          {
+            type: "text",
+            text: `Query execution time: ${duration.toFixed(2)} ms`,
           },
         ],
         isError: false,
@@ -275,7 +283,10 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
 
     try {
       // Execute query - in multi-DB mode, we may need to handle USE statements specially
+      const startTime = performance.now();
       const result = await connection.query(sql);
+      const endTime = performance.now();
+      const duration = endTime - startTime;
       const rows = Array.isArray(result) ? result[0] : result;
 
       // Rollback transaction (since it's read-only)
@@ -289,6 +300,10 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
           {
             type: "text",
             text: JSON.stringify(rows, null, 2),
+          },
+          {
+            type: "text",
+            text: `Query execution time: ${duration.toFixed(2)} ms`,
           },
         ],
         isError: false,

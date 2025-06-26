@@ -4,6 +4,14 @@ export interface SchemaPermissions {
 
 export interface TableRow {
   table_name: string;
+  name: string;
+  database: string;
+  description?: string;
+  rowCount?: number;
+  dataSize?: number;
+  indexSize?: number;
+  createTime?: string;
+  updateTime?: string;
 }
 
 export interface ColumnRow {

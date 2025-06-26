@@ -8,6 +8,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { log } from "./src/utils/index.js";
 import type { TableRow, ColumnRow } from "./src/types/index.js";
 import {
@@ -109,120 +110,110 @@ log(
   ),
 );
 
-// @INFO: Lazy load server instance
-let serverInstance: Promise<Server> | null = null;
-const getServer = (): Promise<Server> => {
-  if (!serverInstance) {
-    serverInstance = new Promise<Server>((resolve) => {
-      const server = new Server(config.server, {
-        capabilities: {
-          resources: {},
-          tools: {
-            mysql_query: {
-              description: toolDescription,
-              inputSchema: {
-                type: "object",
-                properties: {
-                  sql: {
-                    type: "string",
-                    description: "The SQL query to execute",
-                  },
-                },
-                required: ["sql"],
+// Define configuration schema
+export const configSchema = z.object({
+  debug: z.boolean().default(false).describe("Enable debug logging")
+});
+
+// Export the default function that creates and returns the MCP server
+export default function createMcpServer({ sessionId, config }: { sessionId?: string, config: z.infer<typeof configSchema> }) {
+  // Create the server instance
+  const server = new Server({
+    name: "MySQL MCP Server",
+    version: process.env.npm_package_version || "1.0.0"
+  }, {
+    capabilities: {
+      resources: {},
+      tools: {
+        mysql_query: {
+          description: toolDescription,
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "The SQL query to execute",
               },
             },
+            required: ["sql"],
           },
         },
-      });
+      },
+    },
+  });
 
-      // @INFO: Register request handlers
-      server.setRequestHandler(ListResourcesRequestSchema, async () => {
+// Register request handlers for resources
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  try {
+    log("info", "Handling ListResourcesRequest");
+    const connectionInfo = process.env.MYSQL_SOCKET_PATH
+      ? `socket: ${process.env.MYSQL_SOCKET_PATH}`
+      : `host: ${process.env.MYSQL_HOST || "localhost"}, port: ${
+          process.env.MYSQL_PORT || 3306
+        }`;
+    log("info", `Connection info: ${connectionInfo}`);
+
+    // Query to get all tables
+    const tablesQuery = `
+      SELECT 
+        table_name as name,
+        table_schema as \`database\`,
+        table_comment as description,
+        table_rows as rowCount,
+        data_length as dataSize,
+        index_length as indexSize,
+        create_time as createTime,
+        update_time as updateTime
+      FROM 
+        information_schema.tables 
+      WHERE 
+        table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+      ORDER BY 
+        table_schema, table_name
+    `;
+
+    const tables = (await executeReadOnlyQuery(tablesQuery)) as TableRow[];
+    log("info", `Found ${tables.length} tables`);
+
+    // Create resources for each table
+    const resources = tables.map((table) => ({
+      uri: `mysql://tables/${table.name}`,
+      name: table.name,
+      title: `${table.database}.${table.name}`,
+      description:
+        table.description ||
+        `Table ${table.name} in database ${table.database}`,
+      mimeType: "application/json",
+    }));
+
+    // Add a resource for the list of tables
+    resources.push({
+      uri: "mysql://tables",
+      name: "Tables",
+      title: "MySQL Tables",
+      description: "List of all MySQL tables",
+      mimeType: "application/json",
+    });
+
+    return { resources };
+  } catch (error) {
+    log("error", "Error in ListResourcesRequest handler:", error);
+    throw error;
+  }
+});
+
+// Register request handler for reading resources
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         try {
-          log("info", "Handling ListResourcesRequest");
-          const connectionInfo = process.env.MYSQL_SOCKET_PATH
-            ? `socket:${process.env.MYSQL_SOCKET_PATH}`
-            : `${process.env.MYSQL_HOST || "127.0.0.1"}:${process.env.MYSQL_PORT || "3306"}`;
-
-          // If we're in multi-DB mode, list all databases first
-          if (isMultiDbMode) {
-            const databases = (await executeQuery("SHOW DATABASES")) as {
-              Database: string;
-            }[];
-
-            // For each database, list tables
-            let allResources = [];
-
-            for (const db of databases) {
-              // Skip system databases
-              if (
-                [
-                  "information_schema",
-                  "mysql",
-                  "performance_schema",
-                  "sys",
-                ].includes(db.Database)
-              ) {
-                continue;
-              }
-
-              const tables = (await executeQuery(
-                `SELECT table_name FROM information_schema.tables WHERE table_schema = '${db.Database}'`,
-              )) as TableRow[];
-
-              allResources.push(
-                ...tables.map((row: TableRow) => ({
-                  uri: new URL(
-                    `${db.Database}/${row.table_name}/${config.paths.schema}`,
-                    connectionInfo,
-                  ).href,
-                  mimeType: "application/json",
-                  name: `"${db.Database}.${row.table_name}" database schema`,
-                })),
-              );
-            }
-
-            return {
-              resources: allResources,
-            };
-          } else {
-            // Original behavior for single database mode
-            const results = (await executeQuery(
-              "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
-            )) as TableRow[];
-
-            return {
-              resources: results.map((row: TableRow) => ({
-                uri: new URL(
-                  `${row.table_name}/${config.paths.schema}`,
-                  connectionInfo,
-                ).href,
-                mimeType: "application/json",
-                name: `"${row.table_name}" database schema`,
-              })),
-            };
-          }
-        } catch (error) {
-          log("error", "Error in ListResourcesRequest handler:", error);
-          throw error;
-        }
-      });
-
-      server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-        try {
-          log("error", "Handling ReadResourceRequest");
-          const resourceUrl = new URL(request.params.uri);
-          const pathComponents = resourceUrl.pathname.split("/");
-          const schema = pathComponents.pop();
-          const tableName = pathComponents.pop();
-          let dbName = null;
-
-          // In multi-DB mode, we expect a database name in the path
-          if (isMultiDbMode && pathComponents.length > 0) {
-            dbName = pathComponents.pop() || null;
-          }
-
-          if (schema !== config.paths.schema) {
-            throw new Error("Invalid resource URI");
+          log("info", "Handling ReadResourceRequest:", request.params.uri);
+          
+          // Parse the URI to extract table name and optional database name
+          const uriParts = request.params.uri.split("/");
+          const tableName = uriParts.pop();
+          const dbName = uriParts.length > 0 ? uriParts.pop() : null;
+          
+          if (!tableName) {
+            throw new Error(`Invalid resource URI: ${request.params.uri}`);
           }
 
           // Modify query to include schema information
@@ -253,124 +244,154 @@ const getServer = (): Promise<Server> => {
           log("error", "Error in ReadResourceRequest handler:", error);
           throw error;
         }
-      });
+});
 
-      server.setRequestHandler(ListToolsRequestSchema, async () => {
-        log("error", "Handling ListToolsRequest");
-
-        const toolsResponse = {
-          tools: [
-            {
-              name: "mysql_query",
-              description: toolDescription,
-              inputSchema: {
-                type: "object",
-                properties: {
-                  sql: {
-                    type: "string",
-                    description: "The SQL query to execute",
-                  },
-                },
-                required: ["sql"],
-              },
-            },
-          ],
-        };
-
-        log(
-          "error",
-          "ListToolsRequest response:",
-          JSON.stringify(toolsResponse, null, 2),
-        );
-        return toolsResponse;
-      });
-
-      server.setRequestHandler(CallToolRequestSchema, async (request) => {
-        try {
-          log("error", "Handling CallToolRequest:", request.params.name);
-          if (request.params.name !== "mysql_query") {
-            throw new Error(`Unknown tool: ${request.params.name}`);
-          }
-
-          const sql = request.params.arguments?.sql as string;
-          return executeReadOnlyQuery(sql);
-        } catch (error) {
-          log("error", "Error in CallToolRequest handler:", error);
-          throw error;
-        }
-      });
-
-      resolve(server);
-    });
-  }
-  return serverInstance;
-};
-
-// @INFO: Server startup and shutdown
-async function runServer(): Promise<void> {
+  // Register handler for tool calls
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    log("info", "Attempting to test database connection...");
-    // @INFO: Test the connection before fully starting the server
-    const pool = await getPool();
-    const connection = await pool.getConnection();
-    log("info", "Database connection test successful");
-    connection.release();
+    log("info", "Handling CallToolRequest:", request.params.name);
+    if (request.params.name !== "mysql_query") {
+      throw new Error(`Unknown tool: ${request.params.name}`);
+    }
 
-    const server = await getServer();
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    const sql = request.params.arguments?.sql as string;
+    return executeReadOnlyQuery(sql);
   } catch (error) {
-    log("error", "Fatal error during server startup:", error);
-    safeExit(1);
+    log("error", "Error in CallToolRequest handler:", error);
+    throw error;
   }
+});
+
+// Register handler for listing tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  log("info", "Handling ListToolsRequest");
+
+  const toolsResponse = {
+    tools: [
+      {
+        name: "mysql_query",
+        description: toolDescription,
+        inputSchema: {
+          type: "object",
+          properties: {
+            sql: {
+              type: "string",
+              description: "The SQL query to execute",
+            },
+          },
+          required: ["sql"],
+        },
+      },
+    ],
+  };
+
+  log(
+    "info",
+    "ListToolsRequest response:",
+    JSON.stringify(toolsResponse, null, 2),
+  );
+  return toolsResponse;
+});
+
+  // Initialize database connection and set up shutdown handlers
+  (async () => {
+    try {
+      log("info", "Attempting to test database connection...");
+      // Test the connection before fully starting the server
+      const pool = await getPool();
+      const connection = await pool.getConnection();
+      log("info", "Database connection test successful");
+      connection.release();
+    } catch (error) {
+      log("error", "Fatal error during server startup:", error);
+      safeExit(1);
+    }
+  })();
+
+  // Setup shutdown handlers
+  const shutdown = async (signal: string): Promise<void> => {
+    log("error", `Received ${signal}. Shutting down...`);
+    try {
+      // Only attempt to close the pool if it was created
+      if (poolPromise) {
+        const pool = await poolPromise;
+        await pool.end();
+      }
+    } catch (err) {
+      log("error", "Error closing pool:", err);
+      throw err;
+    }
+  };
+
+  process.on("SIGINT", async () => {
+    try {
+      await shutdown("SIGINT");
+      process.exit(0);
+    } catch (err) {
+      log("error", "Error during SIGINT shutdown:", err);
+      safeExit(1);
+    }
+  });
+
+  process.on("SIGTERM", async () => {
+    try {
+      await shutdown("SIGTERM");
+      process.exit(0);
+    } catch (err) {
+      log("error", "Error during SIGTERM shutdown:", err);
+      safeExit(1);
+    }
+  });
+
+  // Add unhandled error listeners
+  process.on("uncaughtException", (error) => {
+    log("error", "Uncaught exception:", error);
+    safeExit(1);
+  });
+
+  process.on("unhandledRejection", (reason, promise) => {
+    log("error", "Unhandled rejection at:", promise, "reason:", reason);
+    safeExit(1);
+  });
+  
+  return server;
 }
 
-const shutdown = async (signal: string): Promise<void> => {
-  log("error", `Received ${signal}. Shutting down...`);
-  try {
-    // @INFO: Only attempt to close the pool if it was created
-    if (poolPromise) {
-      const pool = await poolPromise;
-      await pool.end();
+// If this file is being run directly (not imported), we need to handle it differently
+// This is for backward compatibility with the old way of running the server
+// Check if this module is the main module (directly executed)
+const isMainModule = () => {
+  // For ESM
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    try {
+      return import.meta.url.startsWith('file:') && 
+             process.argv[1] && 
+             import.meta.url === `file://${process.argv[1]}`;
+    } catch (e) {
+      // Fall back to a simple check if import.meta causes issues
+      return false;
     }
-  } catch (err) {
-    log("error", "Error closing pool:", err);
-    throw err;
   }
+  // Default fallback
+  return false;
 };
 
-process.on("SIGINT", async () => {
-  try {
-    await shutdown("SIGINT");
-    process.exit(0);
-  } catch (err) {
-    log("error", "Error during SIGINT shutdown:", err);
-    safeExit(1);
-  }
-});
-
-process.on("SIGTERM", async () => {
-  try {
-    await shutdown("SIGTERM");
-    process.exit(0);
-  } catch (err) {
-    log("error", "Error during SIGTERM shutdown:", err);
-    safeExit(1);
-  }
-});
-
-// @INFO: Add unhandled error listeners
-process.on("uncaughtException", (error) => {
-  log("error", "Uncaught exception:", error);
-  safeExit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  log("error", "Unhandled rejection at:", promise, "reason:", reason);
-  safeExit(1);
-});
-
-runServer().catch((error: unknown) => {
-  log("error", "Server error:", error);
-  safeExit(1);
-});
+// Start the server if this file is being run directly
+if (isMainModule()) {
+  log("info", "Running in standalone mode");
+  
+  // Start the server
+  (async () => {
+    try {
+      const transport = new StdioServerTransport();
+      // Create a server instance directly instead of importing
+      const mcpServer = createMcpServer({ config: { debug: false } });
+      
+      await mcpServer.connect(transport);
+      log("info", "Server started and listening on stdio");
+    } catch (error) {
+      log("error", "Server error:", error);
+      safeExit(1);
+    }
+  })();
+}

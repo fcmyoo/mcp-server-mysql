@@ -271,10 +271,17 @@ export default function createMcpServer({
       }
 
       const sql = request.params.arguments?.sql as string;
-      return executeReadOnlyQuery(sql);
-    } catch (error) {
+      return await executeReadOnlyQuery(sql);
+    } catch (err) {
+      const error = err as Error;
       log("error", "Error in CallToolRequest handler:", error);
-      throw error;
+      return {
+        content: [{
+          type: "text",
+          text: `Error: ${error.message}`
+        }],
+        isError: true
+      };
     }
   });
 
@@ -432,20 +439,20 @@ if (isMainModule()) {
                 sessionIdGenerator: undefined,
               });
             res.on("close", () => {
-              console.log("Request closed");
+              log("info", "Request closed");
               transport.close();
               server.close();
             });
             await server.connect(transport);
             await transport.handleRequest(req, res, req.body);
           } catch (error) {
-            console.error("Error handling MCP request:", error);
+            log("error", "Error handling MCP request:", error);
             if (!res.headersSent) {
               res.status(500).json({
                 jsonrpc: "2.0",
                 error: {
                   code: -32603,
-                  message: "Internal server error",
+                  message: (error as any).message,
                 },
                 id: null,
               });

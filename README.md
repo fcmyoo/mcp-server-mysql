@@ -1,11 +1,6 @@
 
 # MCP Server for MySQL based on NodeJS
-[![smithery badge](https://smithery.ai/badge/@benborla29/mcp-server-mysql)](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 
-![Demo](assets/demo.gif)
-<a href="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@benborla/mcp-server-mysql/badge" />
-</a>
 
 A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
 
@@ -26,7 +21,7 @@ A Model Context Protocol server that provides access to MySQL databases. This se
 
 ## Requirements
 
-- Node.js v18 or higher
+- Node.js v20 or higher
 - MySQL 5.7 or higher (MySQL 8.0+ recommended)
 - MySQL user with appropriate permissions for the operations you need
 - For write operations: MySQL user with INSERT, UPDATE, and/or DELETE privileges
@@ -199,11 +194,11 @@ claude mcp add mcp_server_mysql \
    ```bash
    # Find your Node.js path
    which node
-   
+
    # For PATH environment variable
    echo "$(which node)/../"
-   
-   # For NODE_PATH environment variable  
+
+   # For NODE_PATH environment variable
    echo "$(which node)/../../lib/node_modules"
    ```
 
@@ -287,13 +282,35 @@ If you want to clone and run this MCP server directly from the source code, foll
    - `/full/path/to/mcp-server-mysql` with the full path to where you cloned the repository
    - Set the MySQL credentials to match your environment
 
-5. **Test the server**
+6. **Test the server**
    ```bash
    # Run the server directly to test
    node dist/index.js
    ```
 
    If it connects to MySQL successfully, you're ready to use it with Claude Desktop.
+
+### Run in remote mode
+
+To run in remote mode, you'll need to provide [environment variables](https://github.com/benborla/mcp-server-mysql?tab=readme-ov-file#environment-variables) to the npx script. 
+1. Create env file in preferred directory
+   ```bash
+   # create .env file
+   touch .env
+   ```
+2. Copy-paste [example file](https://github.com/benborla/mcp-server-mysql/blob/main/.env) from this repository
+3. Set the MySQL credentials to match your environment
+4. Set `IS_REMOTE_MCP=true`
+5. Set `REMOTE_SECRET_KEY` to a secure string.
+6. Provide custom `PORT` if needed. Default is 3000.
+7. Load variables in current session:
+   ```bash
+   source .env
+   ```
+8. Run the server
+   ```bash
+   npx @benborla29/mcp-server-mysql
+   ```
 
 ## Components
 
@@ -391,22 +408,22 @@ For more control over the MCP server's behavior, you can use these advanced conf
         "MYSQL_PASS": "",
         "MYSQL_DB": "db_name",
         "PATH": "/path/to/node/bin:/usr/bin:/bin",
-        
+
         // Performance settings
         "MYSQL_POOL_SIZE": "10",
         "MYSQL_QUERY_TIMEOUT": "30000",
         "MYSQL_CACHE_TTL": "60000",
-        
+
         // Security settings
         "MYSQL_RATE_LIMIT": "100",
         "MYSQL_MAX_QUERY_COMPLEXITY": "1000",
         "MYSQL_SSL": "true",
-        
+
         // Monitoring settings
         "ENABLE_LOGGING": "true",
         "MYSQL_LOG_LEVEL": "info",
         "MYSQL_METRICS_ENABLED": "true",
-        
+
         // Write operation flags
         "ALLOW_INSERT_OPERATION": "false",
         "ALLOW_UPDATE_OPERATION": "false",
@@ -451,6 +468,11 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `MYSQL_LOG_LEVEL`: Logging level (default: "info")
 - `MYSQL_METRICS_ENABLED`: Enable performance metrics (default: "false")
 
+### Remote MCP Configuration
+- `IS_REMOTE_MCP`: Enable remote MCP mode (default: "false")
+- `REMOTE_SECRET_KEY`: Secret key for remote MCP authentication (default: ""). If not provided, remote MCP mode will be disabled.
+- `PORT`: Port number for the remote MCP server (default: 3000)
+
 ## Multi-DB Mode
 
 MCP-Server-MySQL supports connecting to multiple databases when no specific database is set. This allows the LLM to query any database the MySQL user has access to. For full details, see [README-MULTI-DB.md](./README-MULTI-DB.md).
@@ -493,7 +515,7 @@ Before running tests, you need to set up the test database and seed it with test
    ```sql
    -- Connect as root and create test database
    CREATE DATABASE IF NOT EXISTS mcp_test;
-   
+
    -- Create test user with appropriate permissions
    CREATE USER IF NOT EXISTS 'mcp_test'@'localhost' IDENTIFIED BY 'mcp_test_password';
    GRANT ALL PRIVILEGES ON mcp_test.* TO 'mcp_test'@'localhost';
@@ -591,12 +613,12 @@ Run the following command to get it:
 
 For **PATH**
 ```bash
-echo "$(which node)/../"    
+echo "$(which node)/../"
 ```
 
 For **NODE_PATH**
 ```bash
-echo "$(which node)/../../lib/node_modules"    
+echo "$(which node)/../../lib/node_modules"
 ```
 
 5. **Claude Desktop Specific Issues**
@@ -652,7 +674,7 @@ Thanks to @lizhuangs
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request to 
+Contributions are welcome! Please feel free to submit a Pull Request to
 https://github.com/benborla/mcp-server-mysql
 
 ## Many Thanks to the following Contributors:

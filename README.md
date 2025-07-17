@@ -9,6 +9,7 @@ A Model Context Protocol server that provides access to MySQL databases. This se
 - [Installation](#installation)
   - [Smithery](#using-smithery)
   - [Clone to Local Repository](#running-from-local-repository)
+  - [Remote mode](#run-in-remote-mode)
 - [Components](#components)
 - [Configuration](#configuration)
 - [Environment Variables](#environment-variables)

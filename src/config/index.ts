@@ -32,6 +32,11 @@ export const SCHEMA_DDL_PERMISSIONS: SchemaPermissions = parseSchemaPermissions(
   process.env.SCHEMA_DDL_PERMISSIONS,
 );
 
+// Remote MCP configuration
+export const IS_REMOTE_MCP = process.env.IS_REMOTE_MCP === "true";
+export const REMOTE_SECRET_KEY = process.env.REMOTE_SECRET_KEY || "";
+export const PORT = process.env.PORT || 3000;
+
 // Check if we're in multi-DB mode (no specific DB set)
 export const isMultiDbMode =
   !process.env.MYSQL_DB || process.env.MYSQL_DB.trim() === "";
@@ -40,7 +45,7 @@ export const mcpConfig = {
   server: {
     name: "@benborla29/mcp-server-mysql",
     version: MCP_VERSION,
-    connectionTypes: ["stdio"],
+    connectionTypes: ["stdio", "streamableHttp"],
   },
   mysql: {
     // Use Unix socket if provided, otherwise use host/port

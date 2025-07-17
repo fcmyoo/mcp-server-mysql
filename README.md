@@ -282,7 +282,7 @@ If you want to clone and run this MCP server directly from the source code, foll
    - `/full/path/to/mcp-server-mysql` with the full path to where you cloned the repository
    - Set the MySQL credentials to match your environment
 
-6. **Test the server**
+5. **Test the server**
    ```bash
    # Run the server directly to test
    node dist/index.js
@@ -311,6 +311,21 @@ To run in remote mode, you'll need to provide [environment variables](https://gi
    ```bash
    npx @benborla29/mcp-server-mysql
    ```
+9. Configure your agent to connect to the MCP with the next configuration:
+```json
+{
+  "mcpServers": {
+    "mysql": {
+      "url": "http://your-host:3000/mcp",
+      "type": "streamableHttp",
+      "headers": {
+        "Authorization": "Bearer <REMOTE_SECRET_KEY>"
+      }
+    }
+  }
+}
+```
+
 
 ## Components
 

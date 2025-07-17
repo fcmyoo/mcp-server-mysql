@@ -187,7 +187,8 @@ export default function createMcpServer({
         table_schema, table_name
     `;
 
-      const tables = (await executeReadOnlyQuery(tablesQuery)) as TableRow[];
+      const queryResult = (await executeReadOnlyQuery<any>(tablesQuery));
+      const tables = JSON.parse(queryResult.content[0].text) as TableRow[];
       log("info", `Found ${tables.length} tables`);
 
       // Create resources for each table

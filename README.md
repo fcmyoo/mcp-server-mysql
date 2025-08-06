@@ -1,6 +1,14 @@
 
-# MCP Server for MySQL based on NodeJS
+# MCP Server for MySQL based on NodeJS (Modified Version)
 
+> **⚠️ This is a modified version of the original [@benborla29/mcp-server-mysql](https://github.com/benborla/mcp-server-mysql)**  
+> **Original Author:** [@benborla29](https://github.com/benborla)  
+> **Original Repository:** https://github.com/benborla/mcp-server-mysql  
+> **License:** MIT  
+
+### Modifications in this fork:
+- Added `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` environment variable to disable read-only transaction enforcement
+- Allows for full write operations (CREATE, INSERT, UPDATE, DELETE) without read-only transaction restrictions
 
 A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
 
@@ -473,6 +481,7 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `ALLOW_UPDATE_OPERATION`: Enable UPDATE operations (default: "false")
 - `ALLOW_DELETE_OPERATION`: Enable DELETE operations (default: "false")
 - `ALLOW_DDL_OPERATION`: Enable DDL operations (default: "false")
+- `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS`: **[NEW]** Disable read-only transaction enforcement (default: "false") ⚠️ **Security Warning:** Only enable this if you need full write capabilities and trust the LLM with your database
 - `SCHEMA_INSERT_PERMISSIONS`: Schema-specific INSERT permissions
 - `SCHEMA_UPDATE_PERMISSIONS`: Schema-specific UPDATE permissions
 - `SCHEMA_DELETE_PERMISSIONS`: Schema-specific DELETE permissions

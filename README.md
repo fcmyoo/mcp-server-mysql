@@ -1,16 +1,24 @@
 
-# MCP Server for MySQL based on NodeJS (Modified Version)
+# MCP Server for MySQL - Claude Code Edition
 
-> **⚠️ This is a modified version of the original [@benborla29/mcp-server-mysql](https://github.com/benborla/mcp-server-mysql)**  
+> **🚀 This is a modified version optimized for Claude Code with SSH tunnel support**  
 > **Original Author:** [@benborla29](https://github.com/benborla)  
 > **Original Repository:** https://github.com/benborla/mcp-server-mysql  
 > **License:** MIT  
 
-### Modifications in this fork:
-- Added `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` environment variable to disable read-only transaction enforcement
-- Allows for full write operations (CREATE, INSERT, UPDATE, DELETE) without read-only transaction restrictions
+### Key Features of This Fork:
+- ✅ **Claude Code Integration** - Optimized for use with Anthropic's Claude Code CLI
+- ✅ **SSH Tunnel Support** - Built-in support for SSH tunnels to remote databases
+- ✅ **Auto-start/stop Hooks** - Automatic tunnel management with Claude start/stop
+- ✅ **DDL Operations** - Added `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` for CREATE TABLE support
+- ✅ **Multi-Project Setup** - Easy configuration for multiple projects with different databases
 
-A Model Context Protocol server that provides access to MySQL databases. This server enables LLMs to inspect database schemas and execute SQL queries.
+### Quick Start for Claude Code Users:
+1. **Read the Setup Guide**: See [PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md) for detailed instructions
+2. **Configure SSH Tunnels**: Set up automatic SSH tunnels for remote databases
+3. **Use with Claude**: Integrated MCP server works seamlessly with Claude Code
+
+A Model Context Protocol server that provides access to MySQL databases through SSH tunnels. This server enables Claude and other LLMs to inspect database schemas and execute SQL queries securely.
 
 ## Table of Contents
 - [Requirements](#requirements)

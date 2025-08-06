@@ -30,13 +30,13 @@ A Model Context Protocol server that provides access to MySQL databases. This se
 
 ### Using Smithery
 
-There are several ways to install and configure the MCP server but the most common would be checking this website https://smithery.ai/server/@benborla29/mcp-server-mysql
+There are several ways to install and configure the MCP server but the most common would be checking this website [https://smithery.ai/server/@benborla29/mcp-server-mysql](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 
 ### Cursor
 
 For Cursor IDE, you can install this MCP server with the following command in your project:
 
-1. Visit https://smithery.ai/server/@benborla29/mcp-server-mysql
+1. Visit [https://smithery.ai/server/@benborla29/mcp-server-mysql](https://smithery.ai/server/@benborla29/mcp-server-mysql)
 2. Follow the instruction for Cursor
 
 MCP Get provides a centralized registry of MCP servers and simplifies the installation process.
@@ -304,7 +304,7 @@ If you want to clone and run this MCP server directly from the source code, foll
 
 ### Run in remote mode
 
-To run in remote mode, you'll need to provide [environment variables](https://github.com/benborla/mcp-server-mysql?tab=readme-ov-file#environment-variables) to the npx script. 
+To run in remote mode, you'll need to provide [environment variables](https://github.com/benborla/mcp-server-mysql?tab=readme-ov-file#environment-variables) to the npx script.
 
 1. Create env file in preferred directory
 
@@ -613,7 +613,7 @@ pnpm test
 
 ## Running evals
 
-The evals package loads an mcp client that then runs the index.ts file, so there is no need to rebuild between tests. You can load environment variables by prefixing the npx command. Full documentation can be found [here](https://www.mcpevals.io/docs).
+The evals package loads an mcp client that then runs the index.ts file, so there is no need to rebuild between tests. You can load environment variables by prefixing the npx command. Full documentation can be found at [MCP Evals](https://www.mcpevals.io/docs).
 
 ```bash
 OPENAI_API_KEY=your-key  npx mcp-eval evals.ts index.ts
@@ -731,7 +731,7 @@ OPENAI_API_KEY=your-key  npx mcp-eval evals.ts index.ts
 Contributions are welcome! Please feel free to submit a Pull Request to
 [https://github.com/benborla/mcp-server-mysql](https://github.com/benborla/mcp-server-mysql)
 
-## Many Thanks to the following Contributors:
+## Many Thanks to the following Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=benborla/mcp-server-mysql)](https://github.com/benborla/mcp-server-mysql/graphs/contributors)
 

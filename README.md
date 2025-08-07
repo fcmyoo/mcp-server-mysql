@@ -332,19 +332,19 @@ To run in remote mode, you'll need to provide [environment variables](https://gi
 
 9. Configure your agent to connect to the MCP with the next configuration:
 
-  ```json
-  {
-    "mcpServers": {
-      "mysql": {
-        "url": "http://your-host:3000/mcp",
-        "type": "streamableHttp",
-        "headers": {
-          "Authorization": "Bearer <REMOTE_SECRET_KEY>"
-        }
-      }
-    }
-  }
-  ```
+   ```json
+   {
+     "mcpServers": {
+       "mysql": {
+         "url": "http://your-host:3000/mcp",
+         "type": "streamableHttp",
+         "headers": {
+           "Authorization": "Bearer <REMOTE_SECRET_KEY>"
+         }
+       }
+     }
+   }
+   ```
 
 ## Components
 

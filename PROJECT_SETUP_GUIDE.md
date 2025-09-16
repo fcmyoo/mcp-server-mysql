@@ -18,18 +18,18 @@ Each project requires three main components for database access through Claude C
 2. **MCP Configuration** - Configure database access through MCP server
 3. **Hooks** - Automatically start/stop tunnels with Claude
 
-### Current Project Configurations
+### Example Project Configurations
 
 | Project | Port | SSH Server | Database | Location |
 |---------|------|------------|----------|----------|
-| NIMA | 3307 | gold.superhosting.bg:1022 | izdavamc_nima | `/Users/dimitarklaturov/Dropbox/nima` |
-| IZDAVAM | 3308 | gold.superhosting.bg:1022 | izdavamc_izdavam | `/Users/dimitarklaturov/Dropbox/izdavam` |
-| NUFC | 3309 | nufc.bg:1022 | pwr0iwww_nufc | `/Users/dimitarklaturov/Dropbox/nufc` |
-| STUDIA | 3310 | gold.superhosting.bg:1022 | izdavamc_studia | `/Users/dimitarklaturov/Dropbox/flutter/studia` |
+| project-a | 3307 | server1.example.com:1022 | db_project_a | `/path/to/project-a` |
+| project-b | 3308 | server1.example.com:1022 | db_project_b | `/path/to/project-b` |
+| project-c | 3309 | server2.example.com:1022 | db_project_c | `/path/to/project-c` |
+| project-d | 3310 | server1.example.com:1022 | db_project_d | `/path/to/project-d` |
 
 ## Prerequisites
 
-1. **MCP MySQL Server** installed at: `/Users/dimitarklaturov/Dropbox/github/mcp-server-mysql`
+1. **MCP MySQL Server** installed at: `/path/to/mcp-server-mysql`
    - Must have `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` support for CREATE TABLE operations
    - Built with `npm run build` or `pnpm build`
 
@@ -139,7 +139,7 @@ Create `.mcp.json` in your project directory:
     "[project]-mysql-server": {
       "type": "stdio",
       "command": "bash",
-      "args": ["-c", "cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql && node dist/index.js"],
+      "args": ["-c", "cd /path/to/mcp-server-mysql && node dist/index.js"],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
         "MYSQL_PORT": "33XX",
@@ -182,9 +182,9 @@ Your project should have this structure:
 
 ## Configuration Examples
 
-### Example 1: Project on gold.superhosting.bg
+### Example 1: Project on example.com
 
-For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
+For projects hosted on example.com (like project-a, project-b, project-d):
 
 ```json
 {
@@ -192,19 +192,19 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
     "claude_start": {
       "command": "./start-tunnel-myproject.sh",
       "background": true,
-      "description": "Start SSH tunnel for MYPROJECT database"
+      "description": "Start SSH tunnel for myproject database"
     },
     "claude_stop": {
       "command": "./stop-tunnel-myproject.sh",
       "background": false,
-      "description": "Stop SSH tunnel for MYPROJECT database"
+      "description": "Stop SSH tunnel for myproject database"
     }
   },
   "inputs": [
     {
       "type": "promptString",
       "id": "mysql-password-myproject",
-      "description": "MySQL Password for MYPROJECT Database",
+      "description": "MySQL Password for myproject Database",
       "password": true,
       "default": "my_secure_password"
     }
@@ -213,13 +213,13 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
     "myproject-mysql-server": {
       "type": "stdio",
       "command": "bash",
-      "args": ["-c", "cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql && node dist/index.js"],
+      "args": ["-c", "cd /path/to/mcp-server-mysql && node dist/index.js"],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
         "MYSQL_PORT": "3311",
-        "MYSQL_USER": "izdavamc_myproject",
+        "MYSQL_USER": "db_myproject",
         "MYSQL_PASS": "${input:mysql-password-myproject}",
-        "MYSQL_DB": "izdavamc_myproject",
+        "MYSQL_DB": "db_myproject",
         "ALLOW_INSERT_OPERATION": "true",
         "ALLOW_UPDATE_OPERATION": "true",
         "ALLOW_DELETE_OPERATION": "true",
@@ -233,12 +233,12 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
 
 ### Example 2: Project on Different Server
 
-For projects on different servers (like NUFC on nufc.bg):
+For projects on different servers (like project-c on server2.example.com):
 
 ```bash
 # start-tunnel-myproject.sh
 LOCAL_PORT=3312
-REMOTE_SERVER="myserver.com"
+REMOTE_SERVER="server2.example.com"
 SSH_PORT=22  # Standard SSH port
 SSH_USER="myuser"
 ```
@@ -309,7 +309,7 @@ DROP TABLE test_table;
 - **Verify database exists**: `SHOW DATABASES;`
 
 #### 3. MCP Server Fails to Connect
-- **Check MCP server is built**: `ls /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql/dist/`
+- **Check MCP server is built**: `ls /path/to/mcp-server-mysql/dist/`
 - **Verify Node.js version**: `node --version` (should be 18+ or 20+)
 - **Check logs**: `claude --debug`
 
@@ -332,7 +332,7 @@ ps aux | grep ssh | grep -E "3307|3308|3309|3310"
 lsof -i -P | grep LISTEN | grep -E "3307|3308|3309|3310"
 
 # Test MCP server directly
-cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql
+cd /path/to/mcp-server-mysql
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=33XX MYSQL_USER=user MYSQL_PASS=pass MYSQL_DB=db node dist/index.js
 
 # View Claude logs
@@ -373,6 +373,6 @@ For each new project:
 ## Support
 
 For issues with:
-- **MCP Server**: Check `/Users/dimitarklaturov/Dropbox/github/mcp-server-mysql`
+- **MCP Server**: Check `/path/to/mcp-server-mysql`
 - **Claude Code**: Run `claude --help` or visit https://docs.anthropic.com/en/docs/claude-code
 - **SSH Tunnels**: Check server connectivity and SSH key configuration

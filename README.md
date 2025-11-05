@@ -502,6 +502,19 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `MYSQL_PASS`: MySQL password
 - `MYSQL_DB`: Target database name (leave empty for multi-DB mode)
 
+#### Alternative: Connection String
+
+For scenarios requiring frequent credential rotation or temporary connections, you can use a MySQL connection string instead of individual environment variables:
+
+- `MYSQL_CONNECTION_STRING`: MySQL CLI-format connection string (e.g., `mysql --default-auth=mysql_native_password -A -hHOST -PPORT -uUSER -pPASS database_name`)
+
+When `MYSQL_CONNECTION_STRING` is provided, it takes precedence over individual connection settings. This is particularly useful for:
+- Rotating credentials that expire frequently
+- Temporary database connections
+- Quick testing with different database configurations
+
+**Note:** For security, this should only be set via environment variables, not stored in version-controlled configuration files. Consider using the `prompt` input type in Claude Code's MCP configuration for credentials that expire.
+
 ### Performance Configuration
 
 - `MYSQL_POOL_SIZE`: Connection pool size (default: "10")

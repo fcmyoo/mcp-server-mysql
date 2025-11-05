@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that provides MySQL database access to LLMs like Claude. It's a fork of @benborla29/mcp-server-mysql with enhanced write operation support and Claude Code optimizations.
+This is a Model Context Protocol (MCP) server that provides MySQL database access to LLMs like Claude, with enhanced write operation support and Claude Code optimizations.
 
 **Key Technologies:**
 

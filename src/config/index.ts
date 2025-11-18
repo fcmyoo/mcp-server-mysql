@@ -77,6 +77,11 @@ export const mcpConfig = {
           : process.env.MYSQL_PASS,
     database: connectionStringConfig.database || process.env.MYSQL_DB || undefined, // Allow undefined database for multi-DB mode
     connectionLimit: 10,
+    waitForConnections: true,
+    queueLimit: process.env.MYSQL_QUEUE_LIMIT ? parseInt(process.env.MYSQL_QUEUE_LIMIT, 10) : 100,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    connectTimeout: process.env.MYSQL_CONNECT_TIMEOUT ? parseInt(process.env.MYSQL_CONNECT_TIMEOUT, 10) : 10000,
     authPlugins: {
       mysql_clear_password: () => () =>
         Buffer.from(

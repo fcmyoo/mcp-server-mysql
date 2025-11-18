@@ -522,6 +522,8 @@ When `MYSQL_CONNECTION_STRING` is provided, it takes precedence over individual 
 - `MYSQL_POOL_SIZE`: Connection pool size (default: "10")
 - `MYSQL_QUERY_TIMEOUT`: Query timeout in milliseconds (default: "30000")
 - `MYSQL_CACHE_TTL`: Cache time-to-live in milliseconds (default: "60000")
+- `MYSQL_QUEUE_LIMIT`: Maximum number of queued connection requests (default: "100")
+- `MYSQL_CONNECT_TIMEOUT`: Connection timeout in milliseconds (default: "10000")
 
 ### Security Configuration
 

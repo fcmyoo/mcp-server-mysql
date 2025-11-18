@@ -3,6 +3,7 @@
 This guide explains how to set up database connections for projects using Claude Code with MCP servers, SSH tunnels, and automatic hooks.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Step-by-Step Setup](#step-by-step-setup)
@@ -14,22 +15,23 @@ This guide explains how to set up database connections for projects using Claude
 ## Overview
 
 Each project requires three main components for database access through Claude Code:
+
 1. **SSH Tunnel Scripts** - Establish secure connection to remote database
 2. **MCP Configuration** - Configure database access through MCP server
 3. **Hooks** - Automatically start/stop tunnels with Claude
 
-### Current Project Configurations
+### Example Project Configurations
 
 | Project | Port | SSH Server | Database | Location |
 |---------|------|------------|----------|----------|
-| NIMA | 3307 | gold.superhosting.bg:1022 | izdavamc_nima | `/Users/dimitarklaturov/Dropbox/nima` |
-| IZDAVAM | 3308 | gold.superhosting.bg:1022 | izdavamc_izdavam | `/Users/dimitarklaturov/Dropbox/izdavam` |
-| NUFC | 3309 | nufc.bg:1022 | pwr0iwww_nufc | `/Users/dimitarklaturov/Dropbox/nufc` |
-| STUDIA | 3310 | gold.superhosting.bg:1022 | izdavamc_studia | `/Users/dimitarklaturov/Dropbox/flutter/studia` |
+| project-a | 3307 | server1.example.com:1022 | db_project_a | `/path/to/project-a` |
+| project-b | 3308 | server1.example.com:1022 | db_project_b | `/path/to/project-b` |
+| project-c | 3309 | server2.example.com:1022 | db_project_c | `/path/to/project-c` |
+| project-d | 3310 | server1.example.com:1022 | db_project_d | `/path/to/project-d` |
 
 ## Prerequisites
 
-1. **MCP MySQL Server** installed at: `/Users/dimitarklaturov/Dropbox/github/mcp-server-mysql`
+1. **MCP MySQL Server** installed at: `/path/to/mcp-server-mysql`
    - Must have `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` support for CREATE TABLE operations
    - Built with `npm run build` or `pnpm build`
 
@@ -47,6 +49,7 @@ Each project requires three main components for database access through Claude C
 Create two scripts in your project directory:
 
 #### `start-tunnel-[project].sh`
+
 ```bash
 #!/bin/bash
 
@@ -85,6 +88,7 @@ fi
 ```
 
 #### `stop-tunnel-[project].sh`
+
 ```bash
 #!/bin/bash
 
@@ -104,6 +108,7 @@ fi
 ```
 
 Make scripts executable:
+
 ```bash
 chmod +x start-tunnel-*.sh stop-tunnel-*.sh
 ```
@@ -139,7 +144,7 @@ Create `.mcp.json` in your project directory:
     "[project]-mysql-server": {
       "type": "stdio",
       "command": "bash",
-      "args": ["-c", "cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql && node dist/index.js"],
+      "args": ["-c", "cd /path/to/mcp-server-mysql && node dist/index.js"],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
         "MYSQL_PORT": "33XX",
@@ -172,7 +177,8 @@ Choose a unique local port for each project to avoid conflicts:
 ## File Structure
 
 Your project should have this structure:
-```
+
+```bash
 /path/to/your/project/
 ├── .mcp.json                    # MCP configuration
 ├── start-tunnel-[project].sh    # Start SSH tunnel script
@@ -182,9 +188,9 @@ Your project should have this structure:
 
 ## Configuration Examples
 
-### Example 1: Project on gold.superhosting.bg
+### Example 1: Project on example.com
 
-For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
+For projects hosted on example.com (like project-a, project-b, project-d):
 
 ```json
 {
@@ -192,19 +198,19 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
     "claude_start": {
       "command": "./start-tunnel-myproject.sh",
       "background": true,
-      "description": "Start SSH tunnel for MYPROJECT database"
+      "description": "Start SSH tunnel for myproject database"
     },
     "claude_stop": {
       "command": "./stop-tunnel-myproject.sh",
       "background": false,
-      "description": "Stop SSH tunnel for MYPROJECT database"
+      "description": "Stop SSH tunnel for myproject database"
     }
   },
   "inputs": [
     {
       "type": "promptString",
       "id": "mysql-password-myproject",
-      "description": "MySQL Password for MYPROJECT Database",
+      "description": "MySQL Password for myproject Database",
       "password": true,
       "default": "my_secure_password"
     }
@@ -213,13 +219,13 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
     "myproject-mysql-server": {
       "type": "stdio",
       "command": "bash",
-      "args": ["-c", "cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql && node dist/index.js"],
+      "args": ["-c", "cd /path/to/mcp-server-mysql && node dist/index.js"],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
         "MYSQL_PORT": "3311",
-        "MYSQL_USER": "izdavamc_myproject",
+        "MYSQL_USER": "db_myproject",
         "MYSQL_PASS": "${input:mysql-password-myproject}",
-        "MYSQL_DB": "izdavamc_myproject",
+        "MYSQL_DB": "db_myproject",
         "ALLOW_INSERT_OPERATION": "true",
         "ALLOW_UPDATE_OPERATION": "true",
         "ALLOW_DELETE_OPERATION": "true",
@@ -233,12 +239,12 @@ For projects hosted on gold.superhosting.bg (like NIMA, IZDAVAM, STUDIA):
 
 ### Example 2: Project on Different Server
 
-For projects on different servers (like NUFC on nufc.bg):
+For projects on different servers (like project-c on server2.example.com):
 
 ```bash
 # start-tunnel-myproject.sh
 LOCAL_PORT=3312
-REMOTE_SERVER="myserver.com"
+REMOTE_SERVER="server2.example.com"
 SSH_PORT=22  # Standard SSH port
 SSH_USER="myuser"
 ```
@@ -246,6 +252,7 @@ SSH_USER="myuser"
 ## Testing Your Setup
 
 ### 1. Test SSH Tunnel
+
 ```bash
 # Start tunnel manually
 ./start-tunnel-[project].sh
@@ -258,12 +265,14 @@ lsof -i :33XX
 ```
 
 ### 2. Test Database Connection
+
 ```bash
 # Test connection through tunnel
 mysql -h 127.0.0.1 -P 33XX -u db_user -p"password" -D database_name -e "SELECT 'Connection OK' as status;"
 ```
 
 ### 3. Test Claude Integration
+
 ```bash
 # Navigate to project
 cd /path/to/your/project
@@ -279,7 +288,9 @@ claude
 ```
 
 ### 4. Test MCP Server Operations
+
 Once in Claude, test database operations:
+
 ```sql
 # Through MCP server
 CREATE TABLE test_table (
@@ -299,26 +310,30 @@ DROP TABLE test_table;
 ### Common Issues and Solutions
 
 #### 1. SSH Tunnel Fails to Start
+
 - **Check SSH key**: Ensure `~/.ssh/id_rsa` exists and has correct permissions (600)
 - **Test SSH manually**: `ssh -p 1022 user@server.com`
 - **Check port availability**: `lsof -i :33XX`
 
 #### 2. Database Connection Fails
+
 - **Verify tunnel is running**: `lsof -i :33XX`
 - **Check credentials**: Test with mysql client directly
 - **Verify database exists**: `SHOW DATABASES;`
 
 #### 3. MCP Server Fails to Connect
-- **Check MCP server is built**: `ls /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql/dist/`
+- **Check MCP server is built**: `ls /path/to/mcp-server-mysql/dist/`
 - **Verify Node.js version**: `node --version` (should be 18+ or 20+)
 - **Check logs**: `claude --debug`
 
 #### 4. Hooks Not Working
+
 - **Check script permissions**: `ls -la *.sh` (should be executable)
 - **Verify script paths**: Use relative paths (`./script.sh`) in .mcp.json
 - **Test scripts manually**: Run start/stop scripts directly
 
 #### 5. Port Conflicts
+
 - **Kill existing process**: `kill $(lsof -ti:33XX)`
 - **Use different port**: Update both scripts and .mcp.json
 
@@ -332,7 +347,7 @@ ps aux | grep ssh | grep -E "3307|3308|3309|3310"
 lsof -i -P | grep LISTEN | grep -E "3307|3308|3309|3310"
 
 # Test MCP server directly
-cd /Users/dimitarklaturov/Dropbox/github/mcp-server-mysql
+cd /path/to/mcp-server-mysql
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=33XX MYSQL_USER=user MYSQL_PASS=pass MYSQL_DB=db node dist/index.js
 
 # View Claude logs
@@ -373,6 +388,6 @@ For each new project:
 ## Support
 
 For issues with:
-- **MCP Server**: Check `/Users/dimitarklaturov/Dropbox/github/mcp-server-mysql`
+- **MCP Server**: Check `/path/to/mcp-server-mysql`
 - **Claude Code**: Run `claude --help` or visit https://docs.anthropic.com/en/docs/claude-code
 - **SSH Tunnels**: Check server connectivity and SSH key configuration

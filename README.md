@@ -2,21 +2,23 @@
 
 > **🚀 This is a modified version optimized for Claude Code with SSH tunnel support**  
 > **Original Author:** [@benborla29](https://github.com/benborla)  
-> **Original Repository:** https://github.com/benborla/mcp-server-mysql  
+> **Original Repository:** [https://github.com/benborla/mcp-server-mysql](https://github.com/benborla/mcp-server-mysql)  
 > **License:** MIT  
 
-# MCP Server for MySQL based on NodeJS
+## MCP Server for MySQL based on NodeJS
+
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/benborla/mcp-server-mysql)](https://archestra.ai/mcp-catalog/benborla__mcp-server-mysql)
 
+### Key Features of This Fork
 
-### Key Features of This Fork:
 - ✅ **Claude Code Integration** - Optimized for use with Anthropic's Claude Code CLI
 - ✅ **SSH Tunnel Support** - Built-in support for SSH tunnels to remote databases
 - ✅ **Auto-start/stop Hooks** - Automatic tunnel management with Claude start/stop
 - ✅ **DDL Operations** - Added `MYSQL_DISABLE_READ_ONLY_TRANSACTIONS` for CREATE TABLE support
 - ✅ **Multi-Project Setup** - Easy configuration for multiple projects with different databases
 
-### Quick Start for Claude Code Users:
+### Quick Start for Claude Code Users
+
 1. **Read the Setup Guide**: See [PROJECT_SETUP_GUIDE.md](PROJECT_SETUP_GUIDE.md) for detailed instructions
 2. **Configure SSH Tunnels**: Set up automatic SSH tunnels for remote databases
 3. **Use with Claude**: Integrated MCP server works seamlessly with Claude Code
@@ -301,8 +303,8 @@ If you want to clone and run this MCP server directly from the source code, foll
            "ALLOW_INSERT_OPERATION": "false",
            "ALLOW_UPDATE_OPERATION": "false",
            "ALLOW_DELETE_OPERATION": "false",
-           "PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/bin:/usr/bin:/bin", // <--- Important to add the following, run in your terminal `echo "$(which node)/../"` to get the path
-           "NODE_PATH": "/Users/atlasborla/Library/Application Support/Herd/config/nvm/versions/node/v22.9.0/lib/node_modules" // <--- Important to add the following, run in your terminal `echo "$(which node)/../../lib/node_modules"`
+           "PATH": "/path/to/node/bin:/usr/bin:/bin", // <--- Important to add the following, run in your terminal `echo "$(which node)/../"` to get the path
+           "NODE_PATH": "/path/to/node/lib/node_modules" // <--- Important to add the following, run in your terminal `echo "$(which node)/../../lib/node_modules"`
          }
        }
      }
@@ -502,11 +504,26 @@ For more control over the MCP server's behavior, you can use these advanced conf
 - `MYSQL_PASS`: MySQL password
 - `MYSQL_DB`: Target database name (leave empty for multi-DB mode)
 
+#### Alternative: Connection String
+
+For scenarios requiring frequent credential rotation or temporary connections, you can use a MySQL connection string instead of individual environment variables:
+
+- `MYSQL_CONNECTION_STRING`: MySQL CLI-format connection string (e.g., `mysql --default-auth=mysql_native_password -A -hHOST -PPORT -uUSER -pPASS database_name`)
+
+When `MYSQL_CONNECTION_STRING` is provided, it takes precedence over individual connection settings. This is particularly useful for:
+- Rotating credentials that expire frequently
+- Temporary database connections
+- Quick testing with different database configurations
+
+**Note:** For security, this should only be set via environment variables, not stored in version-controlled configuration files. Consider using the `prompt` input type in Claude Code's MCP configuration for credentials that expire.
+
 ### Performance Configuration
 
 - `MYSQL_POOL_SIZE`: Connection pool size (default: "10")
 - `MYSQL_QUERY_TIMEOUT`: Query timeout in milliseconds (default: "30000")
 - `MYSQL_CACHE_TTL`: Cache time-to-live in milliseconds (default: "60000")
+- `MYSQL_QUEUE_LIMIT`: Maximum number of queued connection requests (default: "100")
+- `MYSQL_CONNECT_TIMEOUT`: Connection timeout in milliseconds (default: "10000")
 
 ### Security Configuration
 

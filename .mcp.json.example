@@ -1,0 +1,22 @@
+{
+  "inputs": [
+    {
+      "id": "mysql_connection_string",
+      "type": "promptString",
+      "description": "MySQL Connection String (mysql CLI format, expires hourly)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "mysql_local": {
+      "command": "/path/to/node",
+      "args": ["/absolute/path/to/mcp-server-mysql/dist/index.js"],
+      "env": {
+        "MYSQL_CONNECTION_STRING": "${input:mysql_connection_string}",
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
+      }
+    }
+  }
+}

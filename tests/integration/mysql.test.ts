@@ -1,21 +1,20 @@
 import * as mysql2 from "mysql2/promise";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import * as dotenv from "dotenv";
 import {
   executeReadOnlyQuery,
   executeWriteQuery,
 } from "../../dist/src/db/index.js";
+import {
+  __setPermissionOverridesForTest,
+  __clearPermissionOverridesForTest,
+} from "../../dist/src/db/permissions.js";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
 // Set test directory path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Mock environment variables for write operations
-process.env.ALLOW_INSERT_OPERATION = "true";
-process.env.ALLOW_UPDATE_OPERATION = "true";
-process.env.ALLOW_DELETE_OPERATION = "true";
 
 // Load test environment variables
 dotenv.config({ path: path.resolve(__dirname, "../../.env.test") });
@@ -180,134 +179,103 @@ describe("MySQL Integration", () => {
 
   // Tests for the write operations
   describe("Write Operations", () => {
+    afterEach(() => {
+      __clearPermissionOverridesForTest();
+    });
+
     it("should execute INSERT operations when allowed", async () => {
-      // Ensure the flag is set to true for this test
-      const originalValue = process.env.ALLOW_INSERT_OPERATION;
-      process.env.ALLOW_INSERT_OPERATION = "true";
+      __setPermissionOverridesForTest({ insert: true });
 
+      const result = await executeWriteQuery(
+        'INSERT INTO write_ops_test (name, value) VALUES ("New Record", 100)',
+      );
+
+      expect(result.isError).toBe(false);
+      expect(result.content[0].text).toContain("Insert successful");
+
+      const connection = await pool.getConnection();
       try {
-        // Use executeWriteQuery directly for write operations in tests
-        const result = await executeWriteQuery(
-          'INSERT INTO write_ops_test (name, value) VALUES ("New Record", 100)',
-        );
+        const [rows] = (await connection.query(
+          "SELECT * FROM write_ops_test WHERE name = ?",
+          ["New Record"],
+        )) as [any[], any];
 
-        expect(result.isError).toBe(false);
-        expect(result.content[0].text).toContain("Insert successful");
-
-        // Verify the record was inserted
-        const connection = await pool.getConnection();
-        try {
-          const [rows] = (await connection.query(
-            "SELECT * FROM write_ops_test WHERE name = ?",
-            ["New Record"],
-          )) as [any[], any];
-
-          expect(rows.length).toBe(1);
-          expect(rows[0].value).toBe(100);
-        } finally {
-          connection.release();
-        }
+        expect(rows.length).toBe(1);
+        expect(rows[0].value).toBe(100);
       } finally {
-        // Restore original flag value
-        process.env.ALLOW_INSERT_OPERATION = originalValue;
+        connection.release();
       }
     });
 
     it("should execute UPDATE operations when allowed", async () => {
-      // Ensure the flag is set to true for this test
-      const originalValue = process.env.ALLOW_UPDATE_OPERATION;
-      process.env.ALLOW_UPDATE_OPERATION = "true";
+      __setPermissionOverridesForTest({ update: true });
 
+      const result = await executeWriteQuery(
+        'UPDATE write_ops_test SET value = 999 WHERE name = "Original 2"',
+      );
+
+      expect(result.isError).toBe(false);
+      expect(result.content[0].text).toContain("Update successful");
+
+      const connection = await pool.getConnection();
       try {
-        // Use executeWriteQuery directly for write operations in tests
-        const result = await executeWriteQuery(
-          'UPDATE write_ops_test SET value = 999 WHERE name = "Original 2"',
-        );
+        const [rows] = (await connection.query(
+          "SELECT * FROM write_ops_test WHERE name = ?",
+          ["Original 2"],
+        )) as [any[], any];
 
-        expect(result.isError).toBe(false);
-        expect(result.content[0].text).toContain("Update successful");
-
-        // Verify the record was updated
-        const connection = await pool.getConnection();
-        try {
-          const [rows] = (await connection.query(
-            "SELECT * FROM write_ops_test WHERE name = ?",
-            ["Original 2"],
-          )) as [any[], any];
-
-          expect(rows.length).toBe(1);
-          expect(rows[0].value).toBe(999);
-        } finally {
-          connection.release();
-        }
+        expect(rows.length).toBe(1);
+        expect(rows[0].value).toBe(999);
       } finally {
-        // Restore original flag value
-        process.env.ALLOW_UPDATE_OPERATION = originalValue;
+        connection.release();
       }
     });
 
     it("should execute DELETE operations when allowed", async () => {
-      // Ensure the flag is set to true for this test
-      const originalValue = process.env.ALLOW_DELETE_OPERATION;
-      process.env.ALLOW_DELETE_OPERATION = "true";
+      __setPermissionOverridesForTest({ delete: true });
 
+      const result = await executeWriteQuery(
+        'DELETE FROM write_ops_test WHERE name = "Original 3"',
+      );
+
+      expect(result.isError).toBe(false);
+      expect(result.content[0].text).toContain("Delete successful");
+
+      const connection = await pool.getConnection();
       try {
-        // Use executeWriteQuery directly for write operations in tests
-        const result = await executeWriteQuery(
-          'DELETE FROM write_ops_test WHERE name = "Original 3"',
-        );
+        const [rows] = (await connection.query(
+          "SELECT * FROM write_ops_test WHERE name = ?",
+          ["Original 3"],
+        )) as [any[], any];
 
-        expect(result.isError).toBe(false);
-        expect(result.content[0].text).toContain("Delete successful");
-
-        // Verify the record was deleted
-        const connection = await pool.getConnection();
-        try {
-          const [rows] = (await connection.query(
-            "SELECT * FROM write_ops_test WHERE name = ?",
-            ["Original 3"],
-          )) as [any[], any];
-
-          expect(rows.length).toBe(0); // Record should be deleted
-        } finally {
-          connection.release();
-        }
+        expect(rows.length).toBe(0);
       } finally {
-        // Restore original flag value
-        process.env.ALLOW_DELETE_OPERATION = originalValue;
+        connection.release();
       }
     });
 
     it("should block INSERT operations when not allowed", async () => {
-      // Set the flag to false for this test
-      const originalValue = process.env.ALLOW_INSERT_OPERATION;
-      process.env.ALLOW_INSERT_OPERATION = "false";
+      __setPermissionOverridesForTest({ insert: false });
 
+      const result = await executeReadOnlyQuery(
+        'INSERT INTO write_ops_test (name, value) VALUES ("Blocked Insert", 100)',
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain(
+        "INSERT operations are not allowed",
+      );
+
+      const connection = await pool.getConnection();
       try {
-        const result = await executeReadOnlyQuery(
-          'INSERT INTO write_ops_test (name, value) VALUES ("Blocked Insert", 100)',
-        );
+        const [rows] = (await connection.query(
+          "SELECT * FROM write_ops_test WHERE name = ?",
+          ["Blocked Insert"],
+        )) as [any[], any];
 
-        expect(result.isError).toBe(true);
-        expect(result.content[0].text).toContain(
-          "INSERT operations are not allowed",
-        );
-
-        // Verify the record was not inserted
-        const connection = await pool.getConnection();
-        try {
-          const [rows] = (await connection.query(
-            "SELECT * FROM write_ops_test WHERE name = ?",
-            ["Blocked Insert"],
-          )) as [any[], any];
-
-          expect(rows.length).toBe(0); // Record should not exist
-        } finally {
-          connection.release();
-        }
+        expect(rows.length).toBe(0);
       } finally {
-        // Restore original flag value
-        process.env.ALLOW_INSERT_OPERATION = originalValue;
+        connection.release();
       }
     });
   });

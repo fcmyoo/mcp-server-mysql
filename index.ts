@@ -16,7 +16,10 @@ import {
   ALLOW_DELETE_OPERATION,
   ALLOW_DDL_OPERATION,
   ALLOW_INSERT_OPERATION,
+  ALLOW_OBJECT_MANAGEMENT,
+  ALLOW_PRIVILEGE_MANAGEMENT,
   ALLOW_UPDATE_OPERATION,
+  ALLOW_USER_MANAGEMENT,
   SCHEMA_DELETE_PERMISSIONS,
   SCHEMA_DDL_PERMISSIONS,
   SCHEMA_INSERT_PERMISSIONS,
@@ -39,6 +42,22 @@ import {
   executeReadOnlyQuery,
   poolPromise,
 } from "./src/db/index.js";
+import {
+  listViews,
+  createView,
+  dropView,
+  listRoutines,
+  dropRoutine,
+  listUsers,
+  createUser,
+  dropUser,
+  alterUser,
+  setPassword,
+  showGrants,
+  grantPrivilege,
+  revokePrivilege,
+  flushPrivileges,
+} from "./src/db/management.js";
 
 import express, { Request, Response } from "express";
 import { fileURLToPath } from 'url';
@@ -59,7 +78,10 @@ if (
   ALLOW_INSERT_OPERATION ||
   ALLOW_UPDATE_OPERATION ||
   ALLOW_DELETE_OPERATION ||
-  ALLOW_DDL_OPERATION
+  ALLOW_DDL_OPERATION ||
+  ALLOW_OBJECT_MANAGEMENT ||
+  ALLOW_USER_MANAGEMENT ||
+  ALLOW_PRIVILEGE_MANAGEMENT
 ) {
   // At least one write operation is enabled
   toolDescription += " with support for:";
@@ -78,6 +100,18 @@ if (
 
   if (ALLOW_DDL_OPERATION) {
     toolDescription += " DDL,";
+  }
+
+  if (ALLOW_OBJECT_MANAGEMENT) {
+    toolDescription += " OBJECT_MANAGEMENT,";
+  }
+
+  if (ALLOW_USER_MANAGEMENT) {
+    toolDescription += " USER_MANAGEMENT,";
+  }
+
+  if (ALLOW_PRIVILEGE_MANAGEMENT) {
+    toolDescription += " PRIVILEGE_MANAGEMENT,";
   }
 
   // Remove trailing comma and add READ operations
@@ -311,12 +345,71 @@ export default function createMcpServer({
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       log("info", "Handling CallToolRequest:", request.params.name);
-      if (request.params.name !== "mysql_query") {
-        throw new Error(`Unknown tool: ${request.params.name}`);
+      const name = request.params.name as string;
+      const args = request.params.arguments || {};
+
+      if (name === "mysql_query") {
+        const sql = args.sql as string;
+        return await executeReadOnlyQuery(sql);
       }
 
-      const sql = request.params.arguments?.sql as string;
-      return await executeReadOnlyQuery(sql);
+      if (name === "list_views") {
+        return await listViews(args as { database?: string });
+      }
+
+      if (name === "create_view") {
+        return await createView(args as { sql: string });
+      }
+
+      if (name === "drop_view") {
+        return await dropView(args as { sql: string });
+      }
+
+      if (name === "list_routines") {
+        return await listRoutines(args as { database?: string; type?: "PROCEDURE" | "FUNCTION" });
+      }
+
+      if (name === "drop_routine") {
+        return await dropRoutine(args as { sql: string });
+      }
+
+      if (name === "list_users") {
+        return await listUsers();
+      }
+
+      if (name === "create_user") {
+        return await createUser(args as { sql: string });
+      }
+
+      if (name === "drop_user") {
+        return await dropUser(args as { sql: string });
+      }
+
+      if (name === "alter_user") {
+        return await alterUser(args as { sql: string });
+      }
+
+      if (name === "set_password") {
+        return await setPassword(args as { sql: string });
+      }
+
+      if (name === "show_grants") {
+        return await showGrants(args as { sql?: string });
+      }
+
+      if (name === "grant_privilege") {
+        return await grantPrivilege(args as { sql: string });
+      }
+
+      if (name === "revoke_privilege") {
+        return await revokePrivilege(args as { sql: string });
+      }
+
+      if (name === "flush_privileges") {
+        return await flushPrivileges(args as { sql?: string });
+      }
+
+      throw new Error(`Unknown tool: ${name}`);
     } catch (err) {
       const error = err as Error;
       log("error", "Error in CallToolRequest handler:", error);
@@ -355,6 +448,295 @@ export default function createMcpServer({
             destructiveHint: !isReadOnly,
             openWorldHint: false,
             title: "MySQL Query",
+          },
+        },
+        {
+          name: "list_views",
+          description: "List views in a database",
+          inputSchema: {
+            type: "object",
+            properties: {
+              database: {
+                type: "string",
+                description: "Database name",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "List Views",
+          },
+        },
+        {
+          name: "create_view",
+          description: "Create a view",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "CREATE VIEW SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Create View",
+          },
+        },
+        {
+          name: "drop_view",
+          description: "Drop a view",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "DROP VIEW SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Drop View",
+          },
+        },
+        {
+          name: "list_routines",
+          description: "List stored routines",
+          inputSchema: {
+            type: "object",
+            properties: {
+              database: {
+                type: "string",
+                description: "Database name",
+              },
+              type: {
+                type: "string",
+                enum: ["PROCEDURE", "FUNCTION"],
+                description: "Routine type",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "List Routines",
+          },
+        },
+        {
+          name: "drop_routine",
+          description: "Drop a stored routine",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "DROP PROCEDURE/FUNCTION SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Drop Routine",
+          },
+        },
+        {
+          name: "list_users",
+          description: "List MySQL users",
+          inputSchema: {
+            type: "object",
+            properties: {},
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "List Users",
+          },
+        },
+        {
+          name: "create_user",
+          description: "Create a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "CREATE USER SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Create User",
+          },
+        },
+        {
+          name: "drop_user",
+          description: "Drop a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "DROP USER SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Drop User",
+          },
+        },
+        {
+          name: "alter_user",
+          description: "Alter a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "ALTER USER SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Alter User",
+          },
+        },
+        {
+          name: "set_password",
+          description: "Set a MySQL user password",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "SET PASSWORD or ALTER USER ... IDENTIFIED BY SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Set Password",
+          },
+        },
+        {
+          name: "show_grants",
+          description: "Show grants",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "Optional SHOW GRANTS SQL",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "Show Grants",
+          },
+        },
+        {
+          name: "grant_privilege",
+          description: "Grant privileges",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "GRANT SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Grant Privilege",
+          },
+        },
+        {
+          name: "revoke_privilege",
+          description: "Revoke privileges",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "REVOKE SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Revoke Privilege",
+          },
+        },
+        {
+          name: "flush_privileges",
+          description: "Flush privileges",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "Optional FLUSH PRIVILEGES SQL",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Flush Privileges",
           },
         },
       ],

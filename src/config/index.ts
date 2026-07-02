@@ -73,6 +73,12 @@ export const ALLOW_UPDATE_OPERATION =
 export const ALLOW_DELETE_OPERATION =
   process.env.ALLOW_DELETE_OPERATION === "true";
 export const ALLOW_DDL_OPERATION = process.env.ALLOW_DDL_OPERATION === "true";
+export const ALLOW_OBJECT_MANAGEMENT =
+  process.env.ALLOW_OBJECT_MANAGEMENT === "true";
+export const ALLOW_USER_MANAGEMENT =
+  process.env.ALLOW_USER_MANAGEMENT === "true";
+export const ALLOW_PRIVILEGE_MANAGEMENT =
+  process.env.ALLOW_PRIVILEGE_MANAGEMENT === "true";
 
 // Transaction mode control
 export const MYSQL_DISABLE_READ_ONLY_TRANSACTIONS = 

@@ -79,6 +79,47 @@ function inferStatementTypes(sql: string): string[] {
   return parts.map(typeOfStatement);
 }
 
+/**
+ * Leading verbs that define a stored routine/trigger body. The body itself is
+ * full of `;` separators (`BEGIN ... ; ... ; END`) that are *not* statement
+ * delimiters. Because the connection runs with `multipleStatements` disabled,
+ * sending such a definition through `mysql_query` makes MySQL bail at the first
+ * inner `;` with a cryptic syntax error. We detect these up front and return an
+ * actionable message instead.
+ */
+const ROUTINE_DDL_RE =
+  /^\s*CREATE\s+(?:DEFINER\s*=\s*`?[^\s`]+`?(?:@\`?[^\s`]*\`?)?\s+)?(?:PROCEDURE|FUNCTION|TRIGGER)\b/i;
+
+function isRoutineDefinition(sql: string): boolean {
+  return ROUTINE_DDL_RE.test(sql);
+}
+
+/**
+ * Count top-level statements after neutralising literals/comments, so a single
+ * trailing `;` is not mistaken for a multi-statement batch. Routine bodies are
+ * handled separately (see `isRoutineDefinition`) and never reach here.
+ */
+function countTopLevelStatements(sql: string): number {
+  const clean = stripLiteralsAndComments(sql);
+  return clean
+    .split(";")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0).length;
+}
+
+/**
+ * Return the top-level statements of a batch, trimmed and without the
+ * separators. Used by the executor to reject `USE db; SHOW TABLES`-style input
+ * with a hint that names the single-statement alternative.
+ */
+function splitTopLevelStatements(sql: string): string[] {
+  const clean = stripLiteralsAndComments(sql);
+  return clean
+    .split(";")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
 // Extract schema from SQL query
 function extractSchemaFromQuery(sql: string): string | null {
   // Default schema from environment
@@ -405,6 +446,9 @@ export {
   extractSchemaFromQuery,
   getQueryTypes,
   inferStatementTypes,
+  isRoutineDefinition,
+  countTopLevelStatements,
+  splitTopLevelStatements,
   containsSelectStar,
   findPIIColumnReferences,
   isIntrospectionQuery,

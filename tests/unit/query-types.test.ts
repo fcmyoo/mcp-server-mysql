@@ -61,6 +61,15 @@ describe("getQueryTypes - parser-limitation fallback", () => {
     );
     expect(types[0]).toBe("create");
   });
+
+  // Root cause of "Cannot execute statement in a READ ONLY transaction" for
+  // RENAME TABLE: the parser emits a distinct `rename` type (not `alter`), so
+  // the executor must include it in its DDL/write set.
+  it("classifies RENAME TABLE as `rename` (must be treated as DDL)", async () => {
+    expect(
+      await getQueryTypes("RENAME TABLE `dzyh`.`a_copy` TO `dzyh`.`a_orig`"),
+    ).toEqual(["rename"]);
+  });
 });
 
 describe("getQueryTypes - normal AST path still works", () => {

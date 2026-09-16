@@ -138,6 +138,39 @@ const isReadOnly = !(
   ALLOW_DDL_OPERATION
 );
 
+/**
+ * Turn a raw MySQL driver error into a message the model can act on. mysql2
+ * surfaces server errors as `Error` objects carrying `code`/`errno`; we append
+ * a short remediation hint for the shapes that were misfiring most often in
+ * practice (missing table/column, cross-database collation mismatch) without
+ * hiding the original message.
+ */
+function describeQueryError(err: unknown): string {
+  const e = err as { message?: string; code?: string; errno?: number };
+  const base = `Error: ${e?.message ?? String(err)}`;
+  const code = e?.code ?? "";
+  const msg = e?.message ?? "";
+
+  if (code === "ER_NO_SUCH_TABLE" || /doesn't exist/i.test(msg)) {
+    return `${base}\nHint: the table was not found. List tables via the mysql://tables resource or run \`SHOW TABLES FROM \`db\`\`, and qualify names as \`db.table\` in multi-DB mode.`;
+  }
+  if (code === "ER_BAD_FIELD_ERROR" || /Unknown column/i.test(msg)) {
+    return `${base}\nHint: that column does not exist. Inspect the real column names via the mysql://tables/{table} resource or \`SHOW COLUMNS FROM \`db.table\`\` before referencing them (quoted Chinese/identifiers are exact).`;
+  }
+  if (
+    code === "ER_CANT_AGGREGATE_2COLLATIONS" ||
+    code === "ER_CANT_AGGREGATE_3COLLATIONS" ||
+    code === "ER_DIFFERENT_COLLISIONS" ||
+    /Illegal mix of collations/i.test(msg)
+  ) {
+    return `${base}\nHint: the compared columns use different collations (common when joining tables from databases created with different defaults). Add an explicit COLLATE on the comparison, e.g. \`a.col COLLATE utf8mb4_unicode_ci = b.col COLLATE utf8mb4_unicode_ci\`.`;
+  }
+  if (code === "ER_QUERY_TIMEOUT" || /maximum statement execution time/i.test(msg)) {
+    return `${base}\nHint: the query exceeded the server time limit. Add a LIMIT, tighten the WHERE clause, or use an indexed column.`;
+  }
+  return base;
+}
+
 // @INFO: Add debug logging for configuration
 log(
   "info",
@@ -360,7 +393,15 @@ export default function createMcpServer({
             isError: true,
           };
         }
-        return await executeReadOnlyQuery(sql);
+        try {
+          return await executeReadOnlyQuery(sql);
+        } catch (err) {
+          log("error", "Error executing mysql_query:", err);
+          return {
+            content: [{ type: "text", text: describeQueryError(err) }],
+            isError: true,
+          };
+        }
       }
 
       if (name === "mysql_users") {
@@ -598,7 +639,8 @@ export default function createMcpServer({
               privileges: {
                 type: "array",
                 items: { type: "string" },
-                description: "Privileges to grant, such as SELECT, INSERT, UPDATE",
+                description:
+                  "Database-level privileges to grant. Supported: ALL (alias of ALL PRIVILEGES), SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, EXECUTE, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER, CREATE VIEW, SHOW VIEW, REFERENCES, CREATE TEMPORARY TABLES, LOCK TABLES",
               },
               withGrantOption: {
                 type: "boolean",

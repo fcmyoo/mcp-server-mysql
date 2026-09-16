@@ -256,6 +256,13 @@ const ALLOWED_GRANT_PRIVILEGES = new Set([
   "TRIGGER",
   "CREATE VIEW",
   "SHOW VIEW",
+  // Database/table-level privileges that were previously missing. (Global-only
+  // privileges such as PROCESS/SUPER/RELOAD/CREATE USER are intentionally not
+  // listed: they are invalid in `ON db.*` context and would only turn the
+  // friendly "unsupported" error into a raw MySQL syntax error.)
+  "REFERENCES",
+  "CREATE TEMPORARY TABLES",
+  "LOCK TABLES",
 ]);
 
 function normalizePrivileges(input: unknown): string[] {
@@ -266,10 +273,17 @@ function normalizePrivileges(input: unknown): string[] {
   for (const raw of input) {
     const value = typeof raw === "string" ? raw.trim().toUpperCase() : "";
     if (!value) continue;
-    if (!ALLOWED_GRANT_PRIVILEGES.has(value)) {
-      throw new Error(`Unsupported privilege: ${raw}`);
+    // `ALL` / `ALL PRIVILEGES` are the natural values an LLM reaches for, but
+    // `ALL` alone is not in the allow-list. Normalise both to the canonical
+    // `ALL PRIVILEGES` MySQL keyword before the membership check.
+    const canonical =
+      value === "ALL" || value === "ALL PRIVILEGES" ? "ALL PRIVILEGES" : value;
+    if (!ALLOWED_GRANT_PRIVILEGES.has(canonical)) {
+      throw new Error(
+        `Unsupported privilege: ${raw}. Supported privileges (database level): ALL PRIVILEGES, ${[...ALLOWED_GRANT_PRIVILEGES].join(", ")}.`,
+      );
     }
-    out.push(value);
+    if (!out.includes(canonical)) out.push(canonical);
   }
   if (out.length === 0) {
     throw new Error("privileges must include at least one supported value.");

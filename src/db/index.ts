@@ -10,6 +10,8 @@ import {
 import {
   extractSchemaFromQuery,
   getQueryTypes,
+  isRoutineDefinition,
+  countTopLevelStatements,
   containsSelectStar,
   findPIIColumnReferences,
   isIntrospectionQuery,
@@ -42,6 +44,13 @@ const MANAGEMENT_STATEMENT_RE = /^\s*(GRANT\b|REVOKE\b|FLUSH\b|CREATE\s+USER\b|A
 function isManagementStatement(sql: string): boolean {
   return MANAGEMENT_STATEMENT_RE.test(sql);
 }
+
+// Statement types that mutate schema/objects and therefore require the DDL
+// permission flag and the write connection. `rename` (RENAME TABLE) is a MySQL
+// `type` the parser emits verbatim; it must be listed here or RENAME silently
+// falls through to the read-only connection and aborts with
+// "Cannot execute statement in a READ ONLY transaction".
+const DDL_WRITE_TYPES = ["create", "alter", "drop", "truncate", "rename"];
 
 // Force read-only mode in multi-DB mode unless explicitly configured otherwise
 if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== "true") {
@@ -137,7 +146,7 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
         ["delete"].includes(type),
       );
       const isDDLOperation = queryTypes.some((type) =>
-        ["create", "alter", "drop", "truncate"].includes(type),
+        DDL_WRITE_TYPES.includes(type),
       );
 
       // @INFO: Type assertion for ResultSetHeader which has affectedRows, insertId, etc.
@@ -206,6 +215,40 @@ async function executeWriteQuery<T>(sql: string): Promise<T> {
 async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
   let connection;
   try {
+    // Statement-shape guard. The pool runs with `multipleStatements` disabled,
+    // so anything with more than one top-level statement (or a routine body,
+    // whose inner `;` are not statement delimiters) would otherwise reach MySQL
+    // and fail with a cryptic "syntax error near ..." that the LLM cannot act
+    // on. Reject early with a message that names the single-statement fix.
+    if (isRoutineDefinition(sql)) {
+      log("error", "Refusing routine/trigger definition via mysql_query.");
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              "Error: CREATE PROCEDURE / FUNCTION / TRIGGER bodies contain internal `;` separators that this tool cannot execute (it sends one statement per call). " +
+              "Define routines through a MySQL client that supports `DELIMITER`, or execute the equivalent inline SQL instead.",
+          },
+        ],
+        isError: true,
+      } as T;
+    }
+    if (countTopLevelStatements(sql) > 1) {
+      log("error", "Refusing multi-statement input sent to mysql_query.");
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              "Error: only one statement can be executed per call. Split the batch into separate mysql_query calls. " +
+              "For example, replace `USE db; SHOW TABLES` with `SHOW TABLES FROM \\`db\\``, and run `db.table`-qualified queries directly instead of prefixing a `USE` statement.",
+          },
+        ],
+        isError: true,
+      } as T;
+    }
+
     // PII redaction works hand-in-hand with explicit column projection: the
     // schema endpoint hides redacted columns, so the LLM should never need
     // SELECT *. Refusing wildcard projections here prevents the LLM from
@@ -361,7 +404,7 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       isInsertOperation = queryTypes.some((type) => ["insert"].includes(type));
       isDeleteOperation = queryTypes.some((type) => ["delete"].includes(type));
       isDDLOperation = queryTypes.some((type) =>
-        ["create", "alter", "drop", "truncate"].includes(type),
+        DDL_WRITE_TYPES.includes(type),
       );
 
       // `CALL`/`DO` may modify data inside the routine body, which we cannot

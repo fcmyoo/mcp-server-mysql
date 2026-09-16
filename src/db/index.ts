@@ -37,6 +37,12 @@ import {
   type FilterableIntrospectionKind,
 } from "./../security/redact.js";
 
+const MANAGEMENT_STATEMENT_RE = /^\s*(GRANT\b|REVOKE\b|FLUSH\b|CREATE\s+USER\b|ALTER\s+USER\b|DROP\s+USER\b|SET\s+PASSWORD\b)/i;
+
+function isManagementStatement(sql: string): boolean {
+  return MANAGEMENT_STATEMENT_RE.test(sql);
+}
+
 // Force read-only mode in multi-DB mode unless explicitly configured otherwise
 if (isMultiDbMode && process.env.MULTI_DB_WRITE_MODE !== "true") {
   log("error", "Multi-DB mode detected - enabling read-only mode for safety");
@@ -331,6 +337,24 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
     let isDDLOperation = false;
 
     if (!introspectionFilterKind && !isIntrospectionPassThrough) {
+      if (isManagementStatement(sql)) {
+        log(
+          "error",
+          "Refusing management statement via mysql_query; use the dedicated management tools instead.",
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                "Error: management statements are not allowed through mysql_query. " +
+                "Use the dedicated management tools such as mysql_grant, mysql_create_user, mysql_show_grants, mysql_views, or mysql_procedures.",
+            },
+          ],
+          isError: true,
+        } as T;
+      }
+
       queryTypes = await getQueryTypes(sql);
       schema = extractSchemaFromQuery(sql);
       isUpdateOperation = queryTypes.some((type) => ["update"].includes(type));
@@ -339,6 +363,17 @@ async function executeReadOnlyQuery<T>(sql: string): Promise<T> {
       isDDLOperation = queryTypes.some((type) =>
         ["create", "alter", "drop", "truncate"].includes(type),
       );
+
+      // `CALL`/`DO` may modify data inside the routine body, which we cannot
+      // see statically. If such a statement ran under `SET TRANSACTION READ
+      // ONLY`, the procedure's own writes would abort with
+      // "Cannot execute statement in a READ ONLY transaction". Route it to the
+      // write connection instead. The routine's own permissions are still
+      // enforced by MySQL against the connected DB user.
+      if (queryTypes.some((type) => ["call"].includes(type))) {
+        log("info", "Routing CALL/DO statement to write connection");
+        return executeWriteQuery(sql);
+      }
     }
 
     // Check schema-specific permissions

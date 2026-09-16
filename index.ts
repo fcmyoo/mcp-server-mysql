@@ -346,70 +346,76 @@ export default function createMcpServer({
     try {
       log("info", "Handling CallToolRequest:", request.params.name);
       const name = request.params.name as string;
-      const args = request.params.arguments || {};
+      const args = (request.params.arguments || {}) as {
+        sql?: string;
+        database?: string;
+        type?: "PROCEDURE" | "FUNCTION";
+      };
 
       if (name === "mysql_query") {
         const sql = args.sql as string;
+        if (!sql) {
+          return {
+            content: [{ type: "text", text: "Error: sql is required" }],
+            isError: true,
+          };
+        }
         return await executeReadOnlyQuery(sql);
       }
 
-      if (name === "list_views") {
+      if (name === "mysql_users") {
+        return await listUsers();
+      }
+      if (name === "mysql_create_user") {
+        return await createUser(args as { sql: string });
+      }
+      if (name === "mysql_drop_user") {
+        return await dropUser(args as { sql: string });
+      }
+      if (name === "mysql_alter_user") {
+        return await alterUser(args as { sql: string });
+      }
+      if (name === "mysql_set_password") {
+        return await setPassword(args as { sql: string });
+      }
+      if (name === "mysql_show_grants") {
+        return await showGrants(args as { sql?: string });
+      }
+      if (name === "mysql_grant") {
+        return await grantPrivilege(args as {
+          database: string;
+          user: string;
+          host?: string;
+          privileges: unknown[];
+          withGrantOption?: boolean;
+        });
+      }
+      if (name === "mysql_revoke") {
+        return await revokePrivilege(args as { sql: string });
+      }
+      if (name === "mysql_flush_privileges") {
+        return await flushPrivileges(args as { sql?: string });
+      }
+      if (name === "mysql_views") {
         return await listViews(args as { database?: string });
       }
-
-      if (name === "create_view") {
+      if (name === "mysql_create_view") {
         return await createView(args as { sql: string });
       }
-
-      if (name === "drop_view") {
+      if (name === "mysql_drop_view") {
         return await dropView(args as { sql: string });
       }
-
-      if (name === "list_routines") {
+      if (name === "mysql_procedures") {
         return await listRoutines(args as { database?: string; type?: "PROCEDURE" | "FUNCTION" });
       }
-
-      if (name === "drop_routine") {
+      if (name === "mysql_drop_routine") {
         return await dropRoutine(args as { sql: string });
       }
 
-      if (name === "list_users") {
-        return await listUsers();
-      }
-
-      if (name === "create_user") {
-        return await createUser(args as { sql: string });
-      }
-
-      if (name === "drop_user") {
-        return await dropUser(args as { sql: string });
-      }
-
-      if (name === "alter_user") {
-        return await alterUser(args as { sql: string });
-      }
-
-      if (name === "set_password") {
-        return await setPassword(args as { sql: string });
-      }
-
-      if (name === "show_grants") {
-        return await showGrants(args as { sql?: string });
-      }
-
-      if (name === "grant_privilege") {
-        return await grantPrivilege(args as { sql: string });
-      }
-
-      if (name === "revoke_privilege") {
-        return await revokePrivilege(args as { sql: string });
-      }
-
-      if (name === "flush_privileges") {
-        return await flushPrivileges(args as { sql?: string });
-      }
-
-      throw new Error(`Unknown tool: ${name}`);
+      return {
+        content: [{ type: "text", text: `Error: Unknown tool: ${name}` }],
+        isError: true,
+      };
     } catch (err) {
       const error = err as Error;
       log("error", "Error in CallToolRequest handler:", error);
@@ -451,16 +457,213 @@ export default function createMcpServer({
           },
         },
         {
-          name: "list_views",
-          description: "List views in a database",
+          name: "mysql_users",
+          description: "[MySQL User Management] List MySQL users",
+          inputSchema: {
+            type: "object",
+            properties: {},
+            required: [],
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "List MySQL Users",
+          },
+        },
+        {
+          name: "mysql_create_user",
+          description: "[MySQL User Management] Create a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "CREATE USER SQL statement",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Create MySQL User",
+          },
+        },
+        {
+          name: "mysql_drop_user",
+          description: "[MySQL User Management] Drop a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "DROP USER SQL statement",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Drop MySQL User",
+          },
+        },
+        {
+          name: "mysql_alter_user",
+          description: "[MySQL User Management] Alter a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "ALTER USER SQL statement",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Alter MySQL User",
+          },
+        },
+        {
+          name: "mysql_set_password",
+          description: "[MySQL User Management] Set password for a MySQL user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "SET PASSWORD or ALTER USER ... IDENTIFIED BY SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Set MySQL Password",
+          },
+        },
+        {
+          name: "mysql_show_grants",
+          description: "[MySQL Privilege Management] Show grants",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "Optional SHOW GRANTS SQL",
+              },
+            },
+            required: [],
+          },
+          annotations: {
+            readOnlyHint: true,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+            title: "Show Grants",
+          },
+        },
+        {
+          name: "mysql_grant",
+          description: "[MySQL Privilege Management] Grant database-level privileges",
           inputSchema: {
             type: "object",
             properties: {
               database: {
                 type: "string",
-                description: "Database name",
+                description: "Target database name",
+              },
+              user: {
+                type: "string",
+                description: "MySQL user name",
+              },
+              host: {
+                type: "string",
+                description: "MySQL user host, default '%'",
+              },
+              privileges: {
+                type: "array",
+                items: { type: "string" },
+                description: "Privileges to grant, such as SELECT, INSERT, UPDATE",
+              },
+              withGrantOption: {
+                type: "boolean",
+                description: "Whether to grant WITH GRANT OPTION",
               },
             },
+            required: ["database", "user", "privileges"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Grant Privileges",
+          },
+        },
+        {
+          name: "mysql_revoke",
+          description: "[MySQL Privilege Management] Revoke privileges",
+          inputSchema: {
+            type: "object",
+            properties: {
+              sql: {
+                type: "string",
+                description: "REVOKE SQL",
+              },
+            },
+            required: ["sql"],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Revoke Privileges",
+          },
+        },
+        {
+          name: "mysql_flush_privileges",
+          description: "[MySQL Privilege Management] Flush privileges",
+          inputSchema: {
+            type: "object",
+            properties: {},
+            required: [],
+          },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: false,
+            destructiveHint: true,
+            openWorldHint: false,
+            title: "Flush Privileges",
+          },
+        },
+        {
+          name: "mysql_views",
+          description: "[MySQL Object Management] List views",
+          inputSchema: {
+            type: "object",
+            properties: {
+              database: {
+                type: "string",
+                description: "Optional database name",
+              },
+            },
+            required: [],
           },
           annotations: {
             readOnlyHint: true,
@@ -471,8 +674,8 @@ export default function createMcpServer({
           },
         },
         {
-          name: "create_view",
-          description: "Create a view",
+          name: "mysql_create_view",
+          description: "[MySQL Object Management] Create a view",
           inputSchema: {
             type: "object",
             properties: {
@@ -492,8 +695,8 @@ export default function createMcpServer({
           },
         },
         {
-          name: "drop_view",
-          description: "Drop a view",
+          name: "mysql_drop_view",
+          description: "[MySQL Object Management] Drop a view",
           inputSchema: {
             type: "object",
             properties: {
@@ -513,14 +716,14 @@ export default function createMcpServer({
           },
         },
         {
-          name: "list_routines",
-          description: "List stored routines",
+          name: "mysql_procedures",
+          description: "[MySQL Object Management] List stored procedures/functions",
           inputSchema: {
             type: "object",
             properties: {
               database: {
                 type: "string",
-                description: "Database name",
+                description: "Optional database name",
               },
               type: {
                 type: "string",
@@ -528,6 +731,7 @@ export default function createMcpServer({
                 description: "Routine type",
               },
             },
+            required: [],
           },
           annotations: {
             readOnlyHint: true,
@@ -538,8 +742,8 @@ export default function createMcpServer({
           },
         },
         {
-          name: "drop_routine",
-          description: "Drop a stored routine",
+          name: "mysql_drop_routine",
+          description: "[MySQL Object Management] Drop a stored procedure or function",
           inputSchema: {
             type: "object",
             properties: {
@@ -556,187 +760,6 @@ export default function createMcpServer({
             destructiveHint: true,
             openWorldHint: false,
             title: "Drop Routine",
-          },
-        },
-        {
-          name: "list_users",
-          description: "List MySQL users",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-          annotations: {
-            readOnlyHint: true,
-            idempotentHint: true,
-            destructiveHint: false,
-            openWorldHint: false,
-            title: "List Users",
-          },
-        },
-        {
-          name: "create_user",
-          description: "Create a MySQL user",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "CREATE USER SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Create User",
-          },
-        },
-        {
-          name: "drop_user",
-          description: "Drop a MySQL user",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "DROP USER SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Drop User",
-          },
-        },
-        {
-          name: "alter_user",
-          description: "Alter a MySQL user",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "ALTER USER SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Alter User",
-          },
-        },
-        {
-          name: "set_password",
-          description: "Set a MySQL user password",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "SET PASSWORD or ALTER USER ... IDENTIFIED BY SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Set Password",
-          },
-        },
-        {
-          name: "show_grants",
-          description: "Show grants",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "Optional SHOW GRANTS SQL",
-              },
-            },
-          },
-          annotations: {
-            readOnlyHint: true,
-            idempotentHint: true,
-            destructiveHint: false,
-            openWorldHint: false,
-            title: "Show Grants",
-          },
-        },
-        {
-          name: "grant_privilege",
-          description: "Grant privileges",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "GRANT SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Grant Privilege",
-          },
-        },
-        {
-          name: "revoke_privilege",
-          description: "Revoke privileges",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "REVOKE SQL",
-              },
-            },
-            required: ["sql"],
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Revoke Privilege",
-          },
-        },
-        {
-          name: "flush_privileges",
-          description: "Flush privileges",
-          inputSchema: {
-            type: "object",
-            properties: {
-              sql: {
-                type: "string",
-                description: "Optional FLUSH PRIVILEGES SQL",
-              },
-            },
-          },
-          annotations: {
-            readOnlyHint: false,
-            idempotentHint: false,
-            destructiveHint: true,
-            openWorldHint: false,
-            title: "Flush Privileges",
           },
         },
       ],

@@ -20,15 +20,37 @@ const getPool = (): Promise<mysql2.Pool> => {
   return poolPromise;
 };
 
-async function exec(sql: string, params: string[] = []) {
+async function withDbContext<T>(sql: string, fn: (connection: mysql2.PoolConnection) => Promise<T>): Promise<T> {
   const pool = await getPool();
   const connection = await pool.getConnection();
+  let changedDb = false;
+  const previousDb = await connection.query("SELECT DATABASE() AS db").then(([rows]: any[]) => (Array.isArray(rows) ? rows[0]?.db : null));
   try {
-    const result = await connection.query(sql, params);
-    return Array.isArray(result) ? result[0] : result;
+    const trimmed = String(sql).trim();
+    const defaultDb = config.mysql.database || process.env.MYSQL_DB;
+    if (/^(GRANT|REVOKE)\s+/i.test(trimmed) && defaultDb && !/^USE\s+/i.test(trimmed)) {
+      const escaped = defaultDb.replace(/`/g, "``");
+      await connection.query(`USE \`${escaped}\``);
+      changedDb = true;
+    }
+    return await fn(connection);
   } finally {
+    if (changedDb && previousDb) {
+      try {
+        await connection.query(`USE \`${previousDb.replace(/`/g, "``")}\``);
+      } catch {
+        // ignore cleanup errors; connection will be returned to pool
+      }
+    }
     connection.release();
   }
+}
+
+async function exec(sql: string, params: string[] = []) {
+  return withDbContext(sql, async (connection) => {
+    const result = await connection.query(sql, params);
+    return Array.isArray(result) ? result[0] : result;
+  });
 }
 
 function toText(result: unknown, duration: number, ok = true) {
@@ -218,14 +240,66 @@ export async function showGrants(args: { sql?: string } = {}) {
   return withTimer("showGrants", () => exec(sql));
 }
 
-export async function grantPrivilege(args: { sql: string }) {
+const ALLOWED_GRANT_PRIVILEGES = new Set([
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "DELETE",
+  "CREATE",
+  "DROP",
+  "ALTER",
+  "INDEX",
+  "EXECUTE",
+  "CREATE ROUTINE",
+  "ALTER ROUTINE",
+  "EVENT",
+  "TRIGGER",
+  "CREATE VIEW",
+  "SHOW VIEW",
+]);
+
+function normalizePrivileges(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    throw new Error("privileges is required and must be an array.");
+  }
+  const out: string[] = [];
+  for (const raw of input) {
+    const value = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+    if (!value) continue;
+    if (!ALLOWED_GRANT_PRIVILEGES.has(value)) {
+      throw new Error(`Unsupported privilege: ${raw}`);
+    }
+    out.push(value);
+  }
+  if (out.length === 0) {
+    throw new Error("privileges must include at least one supported value.");
+  }
+  return out;
+}
+
+export async function grantPrivilege(args: { database: string; user: string; host?: string; privileges: unknown[]; withGrantOption?: boolean }) {
   const denied = checkFlag("ALLOW_PRIVILEGE_MANAGEMENT", ALLOW_PRIVILEGE_MANAGEMENT);
   if (denied) return denied;
 
-  const sql = String(args.sql).trim();
-  if (!/^GRANT\s+/i.test(sql)) {
-    return bad("grantPrivilege", "Only GRANT is allowed here.");
+  const database = String(args.database || "").trim();
+  const user = String(args.user || "").trim();
+  const host = String(args.host || "%").trim();
+
+  if (!database) {
+    return bad("grantPrivilege", "database is required.");
   }
+  if (!user) {
+    return bad("grantPrivilege", "user is required.");
+  }
+
+  let privileges: string[];
+  try {
+    privileges = normalizePrivileges(args.privileges);
+  } catch (error) {
+    return bad("grantPrivilege", error instanceof Error ? error.message : String(error));
+  }
+
+  const sql = `GRANT ${(privileges as string[]).join(", ")}${args.withGrantOption ? " WITH GRANT OPTION" : ""} ON \`${database.replace(/`/g, "``")}\`.* TO '${user.replace(/['`\\]/g, "\\$&")}'@'${host.replace(/['`\\]/g, "\\$&")}'`;
   return withTimer("grantPrivilege", () => exec(sql));
 }
 

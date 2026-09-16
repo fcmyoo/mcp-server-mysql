@@ -5,6 +5,80 @@ import SqlParser, { AST } from "node-sql-parser";
 const { Parser } = SqlParser;
 const parser = new Parser();
 
+/**
+ * Statement-keyword table used by the textual fallback below. Each entry maps
+ * a leading-keyword regex to a coarse statement type compatible with the
+ * values `node-sql-parser` produces (`select`/`insert`/`update`/`delete`/
+ * `create`/`alter`/`drop`/`truncate`) plus a few the executor needs to route
+ * correctly (`call`, `show`, `explain`, `describe`, `set`, `use`).
+ *
+ * Order matters: first match wins.
+ */
+const FIRST_WORD_TYPE: Array<[RegExp, string]> = [
+  [/^SELECT\b/i, "select"],
+  [/^WITH\b/i, "select"],
+  [/^INSERT\b/i, "insert"],
+  [/^REPLACE\b/i, "insert"],
+  [/^UPDATE\b/i, "update"],
+  [/^DELETE\b/i, "delete"],
+  [/^TRUNCATE\b/i, "truncate"],
+  [/^CREATE\b/i, "create"],
+  [/^ALTER\b/i, "alter"],
+  [/^DROP\b/i, "drop"],
+  [/^RENAME\b/i, "alter"],
+  [/^SHOW\b/i, "show"],
+  [/^DESC(?:RIBE)?\b/i, "describe"],
+  [/^EXPLAIN\b/i, "explain"],
+  [/^CALL\b/i, "call"],
+  [/^DO\b/i, "call"],
+  [/^HANDLER\b/i, "call"],
+  [/^SET\b/i, "set"],
+  [/^USE\b/i, "use"],
+  [/^(?:BEGIN|START|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i, "transaction"],
+  [/^(?:LOCK|UNLOCK)\s+TABLES?\b/i, "set"],
+];
+
+/**
+ * Neutralise string/backtick literals and comments so the fallback type
+ * inference never mistakes a keyword *inside* a value (`'...UPDATE...'`) or a
+ * comment (`-- UPDATE`, `/* ... *\/`) for a real statement verb. Approximate
+ * on purpose — it only has to expose each statement's *leading* verb.
+ */
+function stripLiteralsAndComments(sql: string): string {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/#.*$/gm, " ")
+    .replace(/--.*$/gm, " ")
+    .replace(/'(?:''|[^'])*'/g, " ")
+    .replace(/"(?:""|[^"])*"/g, " ")
+    .replace(/`[^`]*`/g, " ");
+}
+
+function typeOfStatement(statement: string): string {
+  const trimmed = statement.trim();
+  for (const [re, type] of FIRST_WORD_TYPE) {
+    if (re.test(trimmed)) return type;
+  }
+  return "unknown";
+}
+
+/**
+ * Textual statement-type inference. Used when `node-sql-parser` cannot parse
+ * a statement it simply doesn't model (e.g. `CALL`, `EXPLAIN UPDATE`,
+ * `SELECT ... a <=> b`, `CAST(x AS CHAR) COLLATE ...`, reserved-word aliases).
+ * Splits on `;` (after stripping literals/comments) and classifies each
+ * statement by its leading keyword.
+ */
+function inferStatementTypes(sql: string): string[] {
+  const clean = stripLiteralsAndComments(sql);
+  const parts = clean
+    .split(";")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  if (parts.length === 0) return ["unknown"];
+  return parts.map(typeOfStatement);
+}
+
 // Extract schema from SQL query
 function extractSchemaFromQuery(sql: string): string | null {
   // Default schema from environment
@@ -34,18 +108,32 @@ function extractSchemaFromQuery(sql: string): string | null {
 }
 
 async function getQueryTypes(query: string): Promise<string[]> {
+  log("info", "Parsing SQL query: ", query);
   try {
-    log("info", "Parsing SQL query: ", query);
     // Parse into AST or array of ASTs - only specify the database type
     const astOrArray: AST | AST[] = parser.astify(query, { database: "mysql" });
     const statements = Array.isArray(astOrArray) ? astOrArray : [astOrArray];
 
     // Map each statement to its lowercased type (e.g., 'select', 'update', 'insert', 'delete', etc.)
-    return statements.map((stmt) => stmt.type?.toLowerCase() ?? "unknown");
+    const types = statements.map((stmt) => stmt.type?.toLowerCase() ?? "unknown");
+
+    // `node-sql-parser` parses some statements but leaves `type` empty/unknown
+    // (notably `CALL`, and certain `EXPLAIN`/multi-clause forms). Recover the
+    // whole batch textually so the executor routes them correctly instead of
+    // treating an unrecognised `unknown` as read-only.
+    if (types.length > 0 && types.every((t) => t && t !== "unknown")) {
+      return types;
+    }
+    return inferStatementTypes(query);
   } catch (err: any) {
-    log("error", "sqlParser error, query: ", query);
+    // Fail-open like `containsSelectStar`/`isIntrospectionQuery`: a parser
+    // limitation (`<=>`, `CAST(...) COLLATE ...`, reserved-word aliases,
+    // `EXPLAIN UPDATE`, ...) must not reject otherwise-valid MySQL. Infer the
+    // statement type from the leading keyword and let MySQL itself decide
+    // validity at execution time.
+    log("error", "sqlParser error, recovering via textual inference. query: ", query);
     log("error", "Error parsing SQL query:", err);
-    throw new Error(`Parsing failed: ${err.message}`);
+    return inferStatementTypes(query);
   }
 }
 
@@ -316,6 +404,7 @@ function findIntrospectionKind(node: unknown): IntrospectionKind | null {
 export {
   extractSchemaFromQuery,
   getQueryTypes,
+  inferStatementTypes,
   containsSelectStar,
   findPIIColumnReferences,
   isIntrospectionQuery,
